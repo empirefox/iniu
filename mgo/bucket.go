@@ -192,7 +192,7 @@ func (this *Bucket) NoErr() {
 	this.NoErrS(session)
 }
 
-func Buckets(bs []Bucket) error {
+func Buckets(bs *[]Bucket) error {
 	session := NewS()
 	defer session.Close()
 	c := newC(session, C_BUCKET)

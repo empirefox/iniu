@@ -131,6 +131,6 @@ func (this *Bucket) NoErr() {
 	DB.Model(this).UpdateColumns(Bucket{HasError: false})
 }
 
-func Buckets(bs []Bucket) error {
+func Buckets(bs *[]Bucket) error {
 	return DB.Find(bs).Error
 }
