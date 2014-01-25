@@ -29,7 +29,8 @@ func init() {
 		panic(fmt.Sprintf("Got error when connect database, the error is '%v'", err))
 	}
 	DB.DB().SetMaxIdleConns(5)
-	DB.DB().SetMaxOpenConns(10)
+	//go1.2
+	//DB.DB().SetMaxOpenConns(10)
 }
 
 //Bucket 指七牛bucket的相关信息
