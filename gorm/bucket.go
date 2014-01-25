@@ -54,7 +54,7 @@ func (this *Bucket) NewUptoken() error {
 		return errors.New("Bucket的Name/Ak/Sk为空，无法生成Uptoken")
 	}
 	if this.Life == 0 {
-		this.Life = 1
+		this.Life = 380
 	}
 	this.Expires = time.Now().Add(time.Duration(this.Life) * DAY)
 	putPolicy := rs.PutPolicy{
@@ -129,4 +129,8 @@ func (this *Bucket) LogErr() {
 
 func (this *Bucket) NoErr() {
 	DB.Model(this).UpdateColumns(Bucket{HasError: false})
+}
+
+func Buckets(bs []Bucket) error {
+	return DB.Find(bs).Error
 }

@@ -38,7 +38,7 @@ type Bucket struct {
 	Ak       string
 	Sk       string
 	Uptoken  string
-	Expires  uint32
+	Expires  time.Time
 	Life     int64
 	HasError bool
 	Errors   int
@@ -50,12 +50,12 @@ func (this *Bucket) NewUptoken() error {
 		return errors.New("Bucket的Name/Ak/Sk为空，无法生成Uptoken")
 	}
 	if this.Life == 0 {
-		this.Life = 1
+		this.Life = 380
 	}
-	expires := time.Now().Add(time.Duration(this.Life) * DAY)
+	this.Expires = time.Now().Add(time.Duration(this.Life) * DAY)
 	putPolicy := rs.PutPolicy{
 		Scope:   this.Name,
-		Expires: uint32(expires.Unix()),
+		Expires: uint32(this.Expires.Unix()),
 		//CallbackUrl: callbackUrl,
 		//CallbackBody:callbackBody,
 		//ReturnUrl:   returnUrl,
@@ -190,6 +190,13 @@ func (this *Bucket) NoErr() {
 	session := NewS()
 	defer session.Close()
 	this.NoErrS(session)
+}
+
+func Buckets(bs []Bucket) error {
+	session := NewS()
+	defer session.Close()
+	c := newC(session, C_BUCKET)
+	return c.Find(nil).All(bs)
 }
 
 func newC(session *mgo.Session, cName string) *mgo.Collection {
