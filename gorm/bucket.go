@@ -26,7 +26,7 @@ func init() {
 	glog.Infoln(DbUrl)
 	DB, err = gorm.Open("postgres", DbUrl)
 	if err != nil {
-		panic(fmt.Sprintf("Got error when connect database, the error is '%v'", err))
+		panic(fmt.Sprintf("链接数据库错误: '%v'", err))
 	}
 	DB.DB().SetMaxIdleConns(5)
 	//go1.2
@@ -35,26 +35,27 @@ func init() {
 
 //Bucket 指七牛bucket的相关信息
 type Bucket struct {
-	Id        int64
-	Name      string    `sql:"not null;type:varchar(63)"`
-	Ak        string    `sql:"not null;type:varchar(100)"`
-	Sk        string    `sql:"not null;type:varchar(100)"`
-	Uptoken   string    `sql:"not null;type:varchar(300)"`
-	Expires   time.Time `sql:not null`
-	Life      int64
-	HasError  bool
-	Errors    int
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	Id          int64
+	Name        string    `sql:"not null;type:varchar(63);unique"`
+	Description string    `sql:"type:varchar(128)"`
+	Ak          string    `sql:"not null;type:varchar(100)"`
+	Sk          string    `sql:"not null;type:varchar(100)"`
+	Uptoken     string    `sql:"not null;type:varchar(300)"`
+	Expires     time.Time `sql:"not null"`
+	Life        int64
+	HasError    bool
+	Errors      int
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
-//内存中new一个uptoken,有效期为从现在开始的第X天
+//内存中new一个uptoken,没有持久化的,有效期为从现在开始的第X天
 func (this *Bucket) NewUptoken() error {
 	if this.Name == "" || this.Ak == "" || this.Sk == "" {
 		return errors.New("Bucket的Name/Ak/Sk为空，无法生成Uptoken")
 	}
 	if this.Life == 0 {
-		this.Life = 380
+		this.Life = 30
 	}
 	this.Expires = time.Now().Add(time.Duration(this.Life) * DAY)
 	putPolicy := rs.PutPolicy{
@@ -103,6 +104,7 @@ func (this *Bucket) ImgUrl(key string) string {
 	return this.ImgBaseUrl() + key
 }
 
+//生成img的url前缀
 func (this *Bucket) ImgBaseUrl() string {
 	return fmt.Sprintf("http://%v.qiniudn.com/", this.Name)
 }
