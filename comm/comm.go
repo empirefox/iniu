@@ -3,10 +3,27 @@ package comm
 import (
 	"encoding/json"
 	"github.com/golang/glog"
+	"reflect"
 	"time"
 )
 
 func ToJsonFunc(arg interface{}) string {
+	typ := reflect.TypeOf(arg)
+	val := reflect.ValueOf(arg)
+	for typ.Kind() == reflect.Ptr {
+		typ = typ.Elem()
+		val = val.Elem()
+	}
+	if reflect.DeepEqual(val.Interface(), reflect.Zero(typ).Interface()) {
+		switch typ.Kind() {
+		case reflect.String:
+			return ""
+		case reflect.Struct:
+			return "{}"
+		case reflect.Slice, reflect.Map, reflect.Array:
+			return "[]"
+		}
+	}
 	j, _ := json.Marshal(arg)
 	return string(j)
 }
