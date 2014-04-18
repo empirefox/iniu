@@ -1,129 +1,83 @@
 package bucket
 
 import (
+	"github.com/empirefox/iniu/comm"
 	bucketdb "github.com/empirefox/iniu/gorm"
 	"github.com/go-martini/martini"
+	"github.com/golang/glog"
 	"github.com/martini-contrib/binding"
+	"io"
+	"net/http"
+	"time"
 )
 
+//binding包需要显示写出form
 type Bucket struct {
-	Id      int64     `form:"id" json:"id"`
-	Name    string    `form:"name" json:"name" binding:"required"`
-	Ak      string    `form:"ak" json:"ak" binding:"required"`
-	Sk      string    `form:"sk" json:"sk" binding:"required"`
-	Uptoken string    `form:"uptoken" json:"uptoken"`
-	Expires time.Time `form:"expires" json:"expires"`
-	Life    int64     `form:"life" json:"life"`
+	Id          int64     `form:"Id" hidden:"true"`
+	Name        string    `form:"Name" binding:"required"`
+	Description string    `form:"Description"`
+	Ak          string    `form:"Ak" binding:"required"`
+	Sk          string    `form:"Sk" binding:"required"`
+	Uptoken     string    `form:"Uptoken"`
+	Life        int64     `form:"Life" input-type:"number"`
+	Expires     time.Time `form:"Expires" input-type:"date"`
+}
+
+func (bucket *Bucket) Validate(errors *binding.Errors, req *http.Request) {
+	glog.Infoln(bucket)
 }
 
 func (bucket *Bucket) Save() error {
 	bucketdb := &bucketdb.Bucket{
-		Id:      bucket.Id,
-		Name:    bucket.Name,
-		Ak:      bucket.Ak,
-		Sk:      bucket.Sk,
-		Uptoken: bucket.Uptoken,
-		Expires: bucket.Expires,
-		Life:    bucket.Life,
+		Id:          bucket.Id,
+		Name:        bucket.Name,
+		Description: bucket.Description,
+		Ak:          bucket.Ak,
+		Sk:          bucket.Sk,
+		Uptoken:     bucket.Uptoken,
+		Expires:     bucket.Expires,
+		Life:        bucket.Life,
 	}
-	if bucketdb.Id == 0 {
-		return bucketdb.Save()
-	}
-	return bucketdb.Updates()
+	return bucketdb.Save()
 }
 
-func Buckets() {
-	return func(c martini.Context, w http.ResponseWriter, r *http.Request) {
-	}
-}
-
-func UpdateBucket() []martini.Handler {
-	var bind martini.Handler = binding.Bind(Bucket{})
-	var update martini.Handler = func(c martini.Context, bucket Bucket, w http.ResponseWriter, r *http.Request) {
-
-	}
-	return []martini.Handler{bind, update}
-}
-
-func Upload() {
-	return func(c martini.Context, w http.ResponseWriter, r *http.Request) {
-		defer func() {
-			if err := recover(); err != nil {
-				glog.Infoln("上传图片错误:", err) // 这里的err其实就是panic传入的内容
-				fail := &UpJsonRet{
-					UpTime: r.FormValue("up_time"),
-					Json:   failUpJson,
-				}
-				resUpJson(w, fail)
-			}
-		}()
-		//读取KindEditor传过来的内容
-		r.ParseMultipartForm(1 << 20)
-		if !strings.EqualFold(r.Method, "POST") {
-			return
-		}
-		if !strings.EqualFold(r.FormValue("dir"), "IMAGE") {
-			return
-		}
-
-		imgName := r.FormValue("localUrl")
-		bucketName := r.FormValue("bucket")
-		if imgName == "" || bucketName == "" {
-			glog.Infoln("imgName|bucketName为空")
-			return
-		}
-
-		if strings.ContainsAny(imgName, "/\\:") {
-			i := strings.LastIndexAny(imgName, "/\\:")
-			runes := []rune(imgName)
-			imgName = string(runes[i+1:])
-		}
-		imgName = time.Now().Format(IMG_PRE_FMT) + imgName
-
-		imgFile, _, err := r.FormFile("imgFile")
+//更新Bucket信息,需要先绑定Bucket
+func UpdateBucketHandler(okPath string) martini.Handler {
+	return func(bucket Bucket, w http.ResponseWriter, r *http.Request) {
+		err := bucket.Save()
 		if err != nil {
-			glog.Infoln("获取图片错误:", err)
-			return
+			io.WriteString(w, "保存错误，查看日志")
+			glog.Error(err)
+		} else {
+			http.Redirect(w, r, okPath, http.StatusFound)
 		}
-		defer imgFile.Close()
+	}
+}
 
-		//取得bucket
-		bucket := bucket(r)
+func UpdateBucketHandlers(okPath string) []martini.Handler {
+	return []martini.Handler{binding.Bind(Bucket{}), UpdateBucketHandler(okPath)}
+}
 
-		//上传内容到Qiniu
-		var ret qio.PutRet
-		uptoken := bucket.Uptoken
-		extra := &qio.PutExtra{
-		//Params:    params,
-		//MimeType:  mieType,
-		//Crc32:     crc32,
-		//CheckCrc:  CheckCrc,
-		}
+//查看Bucket的json信息,不需要绑定
+func ViewBucket() martini.Handler {
+	return func(params martini.Params) string {
+		bucket, _ := bucketdb.FindByName(params["name"])
+		return comm.ToJsonFunc(bucket)
+	}
+}
 
-		// ret       	变量用于存取返回的信息，详情见 qio.PutRet
-		// uptoken   	为业务服务器端生成的上传口令
-		// key:imgName	为文件存储的标识
-		// r:imgFile   	为io.Reader类型，用于从其读取数据
-		// extra     	为上传文件的额外信息,可为空， 详情见 qio.PutExtra, 可选
-		err = qio.Put(nil, &ret, uptoken, imgName, imgFile, extra)
+type RemoveReqData struct {
+	Id int64 `json:"Id" binding:"required"`
+}
 
+func RemoveBucket() martini.Handler {
+	return func(data RemoveReqData, w http.ResponseWriter, r *http.Request) string {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		err := bucketdb.Delete(data.Id)
 		if err != nil {
-			//上传产生错误
-			glog.Infoln("qio.Put failed:", err)
-			bucket.LogErr()
-			return
+			glog.Errorln("删除Id错误：", data.Id)
+			return `{"error":1}`
 		}
-
-		//上传成功，返回给KindEditor
-		successJson := &UpJson{
-			Error: 0,
-			Url:   bucket.ImgUrl(imgName),
-		}
-		success := &UpJsonRet{
-			UpTime: r.FormValue("up_time"),
-			Json:   successJson,
-		}
-		//w.Header().Set("Content-type", "application/json")
-		resUpJson(w, success)
+		return `{"error":0}`
 	}
 }

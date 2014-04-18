@@ -2,7 +2,6 @@ package gorm
 
 import (
 	"errors"
-	"flag"
 	"fmt"
 	. "github.com/empirefox/iniu/conf"
 	"github.com/golang/glog"
@@ -17,7 +16,6 @@ import (
 var DB gorm.DB
 
 func init() {
-	flag.Set("stderrthreshold", "INFO")
 	var err error
 	DbUrl := os.Getenv("DB_URL")
 	if DbUrl == "" {
@@ -33,7 +31,7 @@ func init() {
 	//DB.DB().SetMaxOpenConns(10)
 }
 
-//Bucket 指七牛bucket的相关信息
+//Bucket:七牛bucket的相关信息
 type Bucket struct {
 	Id          int64
 	Name        string    `sql:"not null;type:varchar(63);unique"`
@@ -55,7 +53,7 @@ func (this *Bucket) NewUptoken() error {
 		return errors.New("Bucket的Name/Ak/Sk为空，无法生成Uptoken")
 	}
 	if this.Life == 0 {
-		this.Life = 30
+		this.Life = 380
 	}
 	this.Expires = time.Now().Add(time.Duration(this.Life) * DAY)
 	putPolicy := rs.PutPolicy{
@@ -99,6 +97,23 @@ func (this *Bucket) ReUptoken() {
 	this.NoErr()
 }
 
+func All() (bs []Bucket) {
+	DB.Find(&bs)
+	return bs
+}
+
+func FindByName(name string) (*Bucket, error) {
+	if name == "" {
+		return nil, errors.New("Bucket is null")
+	}
+	bucket := &Bucket{Name: name}
+	return bucket, bucket.Find()
+}
+
+func Delete(id int64) error {
+	return DB.Delete(Bucket{Id: id}).Error
+}
+
 //生成img的url
 func (this *Bucket) ImgUrl(key string) string {
 	return this.ImgBaseUrl() + key
@@ -131,8 +146,4 @@ func (this *Bucket) LogErr() {
 
 func (this *Bucket) NoErr() {
 	DB.Model(this).UpdateColumns(Bucket{HasError: false})
-}
-
-func Buckets(bs *[]Bucket) error {
-	return DB.Find(bs).Error
 }

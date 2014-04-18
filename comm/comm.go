@@ -1,9 +1,15 @@
 package comm
 
 import (
+	"encoding/json"
 	"github.com/golang/glog"
 	"time"
 )
+
+func ToJsonFunc(arg interface{}) string {
+	j, _ := json.Marshal(arg)
+	return string(j)
+}
 
 func CurrYear() int {
 	return time.Now().Year()
