@@ -9,7 +9,7 @@ var bucketsHtml = `<!DOCTYPE html><html>
 </head>
 <body>
 <div ng-app="myApp" class="container">
-	<div><a href="/logout">退出</a><div>
+	<div><a href="/recovery">恢复出厂</a> | <a href="/auto_migrate">增量导入结构</a> | <a href="/logout">退出</a><div>
 	<div ng-controller="BucketsCtrl" class="row">
 		<div class="col-md-3">
 			<div class="list-group">

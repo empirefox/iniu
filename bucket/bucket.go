@@ -81,3 +81,17 @@ func RemoveBucket() martini.Handler {
 		return `{"error":0}`
 	}
 }
+
+func Recovery() martini.Handler {
+	return func(w http.ResponseWriter, r *http.Request) {
+		bucketdb.Recovery()
+		http.Redirect(w, r, "/buckets", http.StatusSeeOther)
+	}
+}
+
+func AutoMigrate() martini.Handler {
+	return func(w http.ResponseWriter, r *http.Request) {
+		bucketdb.AutoMigrate()
+		http.Redirect(w, r, "/buckets", http.StatusSeeOther)
+	}
+}

@@ -97,6 +97,21 @@ func (this *Bucket) ReUptoken() {
 	this.NoErr()
 }
 
+func Recovery() {
+	DB.DropTable(Bucket{})
+	err := DB.CreateTable(Bucket{}).Error
+	if err != nil {
+		glog.Errorln(err)
+	}
+}
+
+func AutoMigrate() {
+	err := DB.AutoMigrate(Bucket{}).Error
+	if err != nil {
+		glog.Errorln(err)
+	}
+}
+
 func All() (bs []Bucket) {
 	DB.Find(&bs)
 	return bs
