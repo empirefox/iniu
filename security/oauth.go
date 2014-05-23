@@ -1,15 +1,18 @@
-//group := Usernames{"123", "asd"}
-//Use(oauth.Oauth(group))
-//m.Get("/", Wanna(Usernames{"123", "asd"}))
+//	m.Use(oauth.Prepare("/", func validate(name string) bool {
+//	  return googleNames.Contains(name)
+//  }))
+//
+//  oauth.CheckPrev()
 package oauth
 
 import (
 	"github.com/bradrydzewski/go.auth"
 	"github.com/dchest/uniuri"
-	"github.com/deckarep/golang-set"
 	"github.com/go-martini/martini"
+	"github.com/golang/glog"
 	"net/http"
 	"net/url"
+	"reflect"
 )
 
 func init() {
@@ -21,11 +24,29 @@ var (
 	OpenId     = auth.OpenId(auth.GoogleOpenIdEndpoint)
 )
 
-type Usernames []interface{}
+type ValidateType interface{}
 
-type Expected interface{}
+type ValidateFunc func(string) bool
 
-var Oauth = func(okPath string, expected ...Usernames) martini.Handler {
+func getValidateFunc(vType ValidateType) ValidateFunc {
+	if fn, ok := vType.(ValidateFunc); ok {
+		return fn
+	}
+	if fn, ok := vType.(func(string) bool); ok {
+		return fn
+	}
+	glog.Infoln(reflect.ValueOf(vType))
+	panic("ValidateType must be a callable ValidateFunc")
+}
+
+func NilValidate(name string) bool {
+	return false
+}
+
+var Prepare = func(okPath string, v ValidateFunc) martini.Handler {
+	if v == nil {
+		v = NilValidate
+	}
 	auth.Config.CookieSecret = []byte(uniuri.New())
 	auth.Config.LoginSuccessRedirect = okPath
 	auth.Config.CookieSecure = martini.Env == martini.Prod
@@ -39,20 +60,12 @@ var Oauth = func(okPath string, expected ...Usernames) martini.Handler {
 				Logout(w, r)
 			}
 		}
-		names := initUsernames(expected)
-		c.Map(names)
+		c.MapTo(v, (*ValidateType)(nil))
 	}
 }
 
-func initUsernames(exps []Usernames) Usernames {
-	var names Usernames
-	for _, v := range exps {
-		names = append(names, v...)
-	}
-	//if names == nil {
-	//	names = make(Usernames)
-	//}
-	return names
+var PrepareNoValidate = func(okPath string) martini.Handler {
+	return Prepare(okPath, nil)
 }
 
 func Logout(w http.ResponseWriter, r *http.Request) {
@@ -60,26 +73,41 @@ func Logout(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
-var Wanna = func(expected ...Usernames) martini.Handler {
-	return func(c martini.Context, names Usernames, w http.ResponseWriter, r *http.Request) {
-		user, err := auth.GetUserCookie(r)
-
-		//if no active user session then authorize user
-		if err != nil || user.Id() == "" {
-			http.Redirect(w, r, auth.Config.LoginRedirect, http.StatusFound)
-			return
-		}
-
-		//else, add the user to the URL and continue
-		r.URL.User = url.User(user.Id())
-		username := r.URL.User.Username()
-		names = append(names, initUsernames(expected)...)
-		set := mapset.NewSetFromSlice(names)
-		if username == "" {
-			http.Redirect(w, r, auth.Config.LoginRedirect, http.StatusFound)
-		}
-		if !set.Contains(username) {
-			http.Redirect(w, r, PathLogout, http.StatusFound)
-		}
+//只用当前ValidateFunc验证，不验证Prepare
+var OnlyIn = func(v ValidateFunc) martini.Handler {
+	return func(c martini.Context, w http.ResponseWriter, r *http.Request) {
+		innerCheck(c, v, nil, w, r)
 	}
+}
+
+//只用Prepare中的ValidateFunc验证
+var CheckPrev = func() martini.Handler {
+	return func(c martini.Context, vType ValidateType, w http.ResponseWriter, r *http.Request) {
+		innerCheck(c, nil, vType, w, r)
+	}
+}
+
+//Prepare中和当前的ValidateFunc验证
+var CheckAll = func(v ValidateFunc) martini.Handler {
+	return func(c martini.Context, vType ValidateType, w http.ResponseWriter, r *http.Request) {
+		innerCheck(c, v, vType, w, r)
+	}
+}
+
+func innerCheck(c martini.Context, v ValidateFunc, vType ValidateType, w http.ResponseWriter, r *http.Request) {
+	user, err := auth.GetUserCookie(r)
+
+	if err != nil || user.Id() == "" {
+		http.Redirect(w, r, auth.Config.LoginRedirect, http.StatusFound)
+		return
+	}
+
+	username := user.Id()
+	//一方验证通过即放行
+	if (v != nil && v(username)) || (vType != nil && getValidateFunc(vType)(username)) {
+		r.URL.User = url.User(user.Id())
+		return
+	}
+	Logout(w, r)
+	return
 }

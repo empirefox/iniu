@@ -2,96 +2,111 @@ package bucket
 
 import (
 	"github.com/empirefox/iniu/comm"
-	bucketdb "github.com/empirefox/iniu/gorm"
+	db "github.com/empirefox/iniu/gorm"
 	"github.com/go-martini/martini"
 	"github.com/golang/glog"
-	"github.com/martini-contrib/binding"
-	"io"
-	"net/http"
-	"time"
+	"github.com/martini-contrib/render"
 )
 
-//binding包需要显示写出form
-type Bucket struct {
-	Id          int64     `form:"Id" hidden:"true"`
-	Name        string    `form:"Name" binding:"required"`
-	Description string    `form:"Description"`
-	Ak          string    `form:"Ak" binding:"required"`
-	Sk          string    `form:"Sk" binding:"required"`
-	Uptoken     string    `form:"Uptoken"`
-	Life        int64     `form:"Life" input-type:"number"`
-	Expires     time.Time `form:"Expires" input-type:"date"`
+var (
+	DB      = db.DB
+	names   []string
+	buckets []db.Bucket
+)
+
+func initNames() {
+	names = []string{}
+	DB.Model(&db.Bucket{}).Pluck("name", &names)
 }
 
-func (bucket *Bucket) Validate(errors *binding.Errors, req *http.Request) {
-	glog.Infoln(bucket)
+func initBuckets() {
+	var bs []db.Bucket
+	DB.Find(&bs)
+	buckets = bs
 }
 
-func (bucket *Bucket) Save() error {
-	bucketdb := &bucketdb.Bucket{
-		Id:          bucket.Id,
-		Name:        bucket.Name,
-		Description: bucket.Description,
-		Ak:          bucket.Ak,
-		Sk:          bucket.Sk,
-		Uptoken:     bucket.Uptoken,
-		Expires:     bucket.Expires,
-		Life:        bucket.Life,
+func Names() []string {
+	if names == nil {
+		initNames()
 	}
-	return bucketdb.Save()
+	return names
 }
 
-//更新Bucket信息,需要先绑定Bucket
-func UpdateBucketHandler(okPath string) martini.Handler {
-	return func(bucket Bucket, w http.ResponseWriter, r *http.Request) {
-		err := bucket.Save()
+func Buckets() []db.Bucket {
+	if buckets == nil {
+		initBuckets()
+	}
+	return buckets
+}
+
+func NameList() martini.Handler {
+	return func(r render.Render) {
+		comm.JsonContent(r, Names())
+	}
+}
+
+func List() martini.Handler {
+	return func(r render.Render) {
+		comm.JsonContent(r, Buckets())
+	}
+}
+
+func One() martini.Handler {
+	return func(r render.Render, params martini.Params) {
+		bucket, err := db.FindByName(params["name"])
 		if err != nil {
-			io.WriteString(w, "保存错误，查看日志")
-			glog.Error(err)
+			comm.JsonErr(r, err)
 		} else {
-			http.Redirect(w, r, okPath, http.StatusFound)
+			comm.JsonContent(r, bucket)
 		}
 	}
 }
 
-func UpdateBucketHandlers(okPath string) []martini.Handler {
-	return []martini.Handler{binding.Bind(Bucket{}), UpdateBucketHandler(okPath)}
-}
-
-//查看Bucket的json信息,不需要绑定
-func ViewBucket() martini.Handler {
-	return func(params martini.Params) string {
-		bucket, _ := bucketdb.FindByName(params["name"])
-		return comm.ToJsonFunc(bucket)
-	}
-}
-
-type RemoveReqData struct {
-	Id int64 `json:"Id" binding:"required"`
-}
-
-func RemoveBucket() martini.Handler {
-	return func(data RemoveReqData, w http.ResponseWriter, r *http.Request) string {
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		err := bucketdb.Delete(data.Id)
+func Save() martini.Handler {
+	return func(data db.Bucket, r render.Render) {
+		err := DB.Save(&data).Error
 		if err != nil {
-			glog.Errorln("删除Id错误：", data.Id)
-			return `{"error":1}`
+			comm.JsonErr(r, err)
+		} else {
+			initBuckets()
+			comm.JsonContent(r, &data)
 		}
-		return `{"error":0}`
+	}
+}
+
+func Remove() martini.Handler {
+	return func(data db.Bucket, r render.Render) {
+		err := DB.Delete(&data).Error
+		if err != nil {
+			comm.JsonErr(r, err)
+		} else {
+			//可综合考虑slice删除方式
+			initBuckets()
+			comm.JsonOk(r)
+		}
 	}
 }
 
 func Recovery() martini.Handler {
-	return func(w http.ResponseWriter, r *http.Request) {
-		bucketdb.Recovery()
-		http.Redirect(w, r, "/buckets", http.StatusSeeOther)
+	return func(r render.Render) {
+		err := db.Recovery()
+		if err != nil {
+			glog.Errorln(err)
+			comm.JsonErr(r, err)
+		} else {
+			comm.JsonOk(r)
+		}
 	}
 }
 
 func AutoMigrate() martini.Handler {
-	return func(w http.ResponseWriter, r *http.Request) {
-		bucketdb.AutoMigrate()
-		http.Redirect(w, r, "/buckets", http.StatusSeeOther)
+	return func(r render.Render) {
+		err := db.AutoMigrate()
+		if err != nil {
+			glog.Errorln(err)
+			comm.JsonErr(r, err)
+		} else {
+			comm.JsonOk(r)
+		}
 	}
 }

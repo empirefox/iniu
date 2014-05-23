@@ -32,7 +32,7 @@ var (
 </script>
 </body>
 </html>`
-	MessengerJs = "/messenger.js"
+	MessengerJs = "/lib/messenger.js"
 	MsgJsonpTpl *template.Template
 )
 
@@ -43,11 +43,11 @@ func init() {
 }
 
 type UploadData struct {
-	UpTime   string                `form:"up_time" binding:"required"`
-	Dir      string                `form:"dir" binding:"required"`
-	Bucket   string                `form:"bucket" binding:"required"`
+	UpTime   string                `form:"up_time"  binding:"required"`
+	Dir      string                `form:"dir" 	  binding:"required"`
+	Bucket   string                `form:"bucket"   binding:"required"`
 	LocalUrl string                `form:"localUrl" binding:"required"`
-	ImgFile  *multipart.FileHeader `form:"imgFile" binding:"required"`
+	ImgFile  *multipart.FileHeader `form:"imgFile"  binding:"required"`
 }
 
 func (data *UploadData) Validate(errors *binding.Errors, r *http.Request) {

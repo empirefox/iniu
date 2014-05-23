@@ -7,8 +7,10 @@ import (
 	"github.com/golang/glog"
 	"github.com/jinzhu/gorm"
 	_ "github.com/lib/pq"
+	"github.com/martini-contrib/binding"
 	"github.com/qiniu/api/auth/digest"
 	"github.com/qiniu/api/rs"
+	"net/http"
 	"os"
 	"time"
 )
@@ -33,18 +35,23 @@ func init() {
 
 //Bucket:七牛bucket的相关信息
 type Bucket struct {
-	Id          int64
-	Name        string    `sql:"not null;type:varchar(63);unique"`
-	Description string    `sql:"type:varchar(128)"`
-	Ak          string    `sql:"not null;type:varchar(100)"`
-	Sk          string    `sql:"not null;type:varchar(100)"`
-	Uptoken     string    `sql:"not null;type:varchar(300)"`
-	Expires     time.Time `sql:"not null"`
-	Life        int64
-	HasError    bool
-	Errors      int
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	Id          int64     `json:",omitempty"`
+	Name        string    `json:",omitempty" binding:"required" sql:"not null;type:varchar(63);unique"`
+	Description string    `json:",omitempty"                    sql:"type:varchar(128)"`
+	Ak          string    `json:",omitempty" binding:"required" sql:"not null;type:varchar(100)"`
+	Sk          string    `json:",omitempty" binding:"required" sql:"not null;type:varchar(100)"`
+	Uptoken     string    `json:",omitempty"                    sql:"not null;type:varchar(300)"`
+	Expires     time.Time `json:",omitempty"                    sql:"not null"`
+	Life        int64     `json:",omitempty" binding:"required"`
+	HasError    bool      `json:",omitempty"`
+	Errors      int       `json:",omitempty"`
+	CreatedAt   time.Time `json:",omitempty"`
+	UpdatedAt   time.Time `json:",omitempty"`
+}
+
+//martini binding 包绑定时验证
+func (this *Bucket) Validate(errors *binding.Errors, req *http.Request) {
+	glog.Infoln(this)
 }
 
 //内存中new一个uptoken,没有持久化的,有效期为从现在开始的第X天
@@ -97,24 +104,23 @@ func (this *Bucket) ReUptoken() {
 	this.NoErr()
 }
 
-func Recovery() {
+func Recovery() error {
 	DB.DropTable(Bucket{})
-	err := DB.CreateTable(Bucket{}).Error
-	if err != nil {
-		glog.Errorln(err)
-	}
+	return DB.CreateTable(Bucket{}).Error
 }
 
-func AutoMigrate() {
-	err := DB.AutoMigrate(Bucket{}).Error
-	if err != nil {
-		glog.Errorln(err)
-	}
+func AutoMigrate() error {
+	return DB.AutoMigrate(Bucket{}).Error
 }
 
 func All() (bs []Bucket) {
 	DB.Find(&bs)
 	return bs
+}
+
+func Names() (names []string) {
+	DB.Model(&Bucket{}).Pluck("name", &names)
+	return names
 }
 
 func FindByName(name string) (*Bucket, error) {
