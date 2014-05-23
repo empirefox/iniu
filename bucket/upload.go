@@ -55,17 +55,14 @@ func (data *UploadData) Validate(errors *binding.Errors, r *http.Request) {
 	data.Dir = r.FormValue("dir")
 	data.Bucket = r.FormValue("bucket")
 	if data.Dir != "IMAGE" {
-		errors.Fields["Dir"] = "Dir错误"
+		errors.Add([]string{"Dir"}, "ErrorClass", "Dir错误")
 	}
 	//修复无法解析查询问题
 	if data.UpTime == "" {
-		errors.Fields["up_time"] = "required"
-	}
-	if data.Dir == "" {
-		errors.Fields["dir"] = "required"
+		errors.Add([]string{"up_time"}, "ErrorClass", "required")
 	}
 	if data.Bucket == "" {
-		errors.Fields["bucket"] = "required"
+		errors.Add([]string{"bucket"}, "ErrorClass", "required")
 	}
 }
 

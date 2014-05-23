@@ -70,7 +70,7 @@ type ListReqData struct {
 
 func (data *ListReqData) Validate(errors *binding.Errors, req *http.Request) {
 	if strings.ToUpper(data.Dir) != "IMAGE" {
-		errors.Fields["Dir"] = "Dir错误"
+		errors.Add([]string{"Dir"}, "ErrorClass", "Dir错误")
 	}
 	if data.Path != "" {
 		data.Path = strings.TrimSuffix(data.Path, "/")
