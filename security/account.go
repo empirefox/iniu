@@ -6,7 +6,8 @@ import (
 	"github.com/jinzhu/gorm"
 
 	. "github.com/empirefox/iniu/base"
-	. "github.com/empirefox/iniu/gorm/postgres"
+	. "github.com/empirefox/iniu/gorm/db"
+	. "github.com/empirefox/iniu/gorm/mod"
 	"github.com/empirefox/shirolet"
 )
 

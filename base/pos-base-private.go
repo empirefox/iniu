@@ -4,10 +4,6 @@ import (
 	"errors"
 
 	"github.com/jinzhu/gorm"
-	un "github.com/tobyhede/go-underscore"
-
-	. "github.com/empirefox/iniu/gorm/db"
-	. "github.com/empirefox/iniu/gorm/mod"
 )
 
 var (
@@ -15,23 +11,13 @@ var (
 	secureSliceLen int   = 100
 )
 
-func init() {
-	un.MakeAny(&AnyIp)
-}
-
 func indexWithId(ips []IdPos, tar IdPos) int {
-	index := -1
-
-	indexOfFunc := func(ip IdPos, i int) bool {
+	for i, ip := range ips {
 		if ip.Id == tar.Id {
-			index = i
-			return true
+			return i
 		}
-		return false
 	}
-
-	AnyIp(indexOfFunc, ips)
-	return index
+	return -1
 }
 
 type pointer struct {
@@ -71,10 +57,10 @@ func (p *pointer) next() int {
 
 func (p *pointer) isInRange(dir int) bool {
 	index := p.iBase + dir
-	if index == -1 && p.topSpace != 0 {
-		return -1
+	if index == 0 && p.topSpace != 0 {
+		return true
 	}
-	return !(index < 0 || index > p.size-2)
+	return !(index < 1 || index > p.size-1)
 }
 
 // must assure the ips is legal
@@ -83,9 +69,10 @@ func average(ips []IdPos) {
 	top := ips[0].Pos
 	bottom := ips[size-1].Pos
 
-	var getStep = func(i int) int64 {
+	var getStep = func(i_in int) int64 {
+		i := int64(i_in)
 		if top > 0 {
-			return i * (top - bottom) / (size - 1)
+			return i * (top - bottom) / (int64(size) - 1)
 		}
 		return i * step
 	}
@@ -94,22 +81,21 @@ func average(ips []IdPos) {
 	}
 }
 
-func computeDestOffset(ips []IdPos, p *pointer) (int, int, int64, bool) {
-	for p.hasNext() {
-		index := p.next()
-
-		if index == -1 {
+// return moved_first_index moved_last_index(be care that the last one is not included) space_with_direction success?
+func findDestSpace(ips []IdPos, p *pointer) (int, int, int64, bool) {
+	for index := p.iBase; p.hasNext(); index = p.next() {
+		if index == 0 {
 			return -1, p.iBase, p.topSpace, true
 		}
 
-		space := ips[index].Pos - ips[index+1].Pos
+		space := ips[index-1].Pos - ips[index].Pos
 		if space > 1 {
-			if index < p.iBase {
+			if index <= p.iBase {
 				// go up
-				return index + 1, p.iBase, space / 2, true
+				return index, p.iBase, space, true
 			}
 			// go down
-			return p.iBase, index + 1, -space / 2, true
+			return p.iBase, index, -space, true
 		}
 	}
 	return -1, -1, -1, false
@@ -119,10 +105,18 @@ func computeDestOffset(ips []IdPos, p *pointer) (int, int, int64, bool) {
 //           + >>> hase space to exceed
 //           - >>> it is the first page, can set standard step pos without limit
 func handleNewPos(ips []IdPos, iBase int, topSpace int64) (int64, []IdPos, error) {
-	p := &pointer{iBase: iBase, topSpace: topSpace}
-	start, end, os, ok := computeDestOffset(ips, p)
+	p := &pointer{iBase: iBase, size: len(ips), topSpace: topSpace}
+	start, end, space, ok := findDestSpace(ips, p)
 	if !ok {
-		return -1, errors.New("need rearrange")
+		return -1, nil, errors.New("need rearrange")
+	}
+
+	if end < start {
+		return -1, nil, errors.New("end should be bigger than start")
+	}
+
+	if start == end {
+		return (ips[iBase].Pos + ips[iBase-1].Pos) / 2, nil, nil
 	}
 
 	useTopSpace := false
@@ -131,19 +125,19 @@ func handleNewPos(ips []IdPos, iBase int, topSpace int64) (int64, []IdPos, error
 		start = 1
 	}
 
-	if end < start {
-		return -1, nil, errors.New("end should be bigger than start")
-	}
-
 	var target, from, to int
-	capacity := end - start + 4
+	capacity := end - start + 3
 	// mock a fixed slice to adjust pos from 1 to size-2
-	mods := make([]IdPos, capacity-1, capacity)
-	if os > 0 {
+	mods := make([]IdPos, 0, capacity)
+	if space > 0 || useTopSpace {
 		// offset to up
 		if useTopSpace {
 			// exceed the origin top
-			mods = append(mods, IdPos{Pos: p.topSpace})
+			exceedPos := p.topSpace
+			if space > 0 {
+				exceedPos = ips[0].Pos + p.topSpace
+			}
+			mods = append(mods, IdPos{Pos: exceedPos})
 		}
 		from = 1
 		mods = append(mods, ips[start-1:end]...)
@@ -164,25 +158,15 @@ func handleNewPos(ips []IdPos, iBase int, topSpace int64) (int64, []IdPos, error
 		to = len(mods) - 1
 	}
 	average(mods)
-	return mods[target].Pos, mods[from:to], true
+	return mods[target].Pos, mods[from:to], nil
 }
 
 func max(t string, fns ...func(*gorm.DB) *gorm.DB) (ip IdPos, err error) {
-	err = IpDb(t, fns).First(&ip).Error
+	err = IpDb(t, fns).Order("pos desc").First(&ip).Error
 	return
 }
 
 func min(t string, fns ...func(*gorm.DB) *gorm.DB) (ip IdPos, err error) {
 	err = IpDb(t, fns).Order("pos asc").First(&ip).Error
 	return
-}
-
-func beforeOrAfterAnd(t string, isBefore bool, pos int64, fns ...func(*gorm.DB) *gorm.DB) ([]IdPos, error) {
-	q := "pos >= ?"
-	if !isBefore {
-		q = "pos <= ?"
-	}
-	ips := []IdPos{}
-	err := DB.Table(t).Scopes(fns...).Where(q, pos).Limit(2).Find(&ips).Error
-	return ips, err
 }

@@ -31,16 +31,16 @@ func init() {
 
 func WebPerm(t Table, method string) shirolet.Permit {
 	if webPerms, found := formWebPerms[t]; found {
-		p := webPerms[method]
-		return p
+		return webPerms[method]
 	}
+	return nil
 }
 
 func FieldPerm(t Table, field string) shirolet.Permit {
 	if fieldPerms, found := formFieldPerms[t]; found {
-		p := fieldPerms[field]
-		return p
+		return fieldPerms[field]
 	}
+	return nil
 }
 
 func InitForms() {

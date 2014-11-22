@@ -4,7 +4,9 @@ import (
 	"errors"
 	"reflect"
 
-	. "github.com/jinzhu/gorm"
+	"github.com/jinzhu/gorm"
+
+	. "github.com/empirefox/iniu/gorm/db"
 )
 
 type J map[string]interface{}
@@ -27,6 +29,10 @@ type Table interface{}
 var (
 	Creators     = map[Table]Creator{}
 	FormTableMap = map[string]string{}
+
+	// exports
+	SaveModel     = saveModel
+	SaveModelWith = saveModelWith
 )
 
 type creator struct {
@@ -105,7 +111,7 @@ func Register(m Model) {
 
 	c.form = f
 
-	t := Table(Tablename(m))
+	t := Tablename(m)
 	Creators[t] = *c
 	FormTableMap[mname] = t
 }
@@ -142,7 +148,7 @@ func HasPos(t Table) bool {
 	if c, ok := Creators[t]; ok {
 		return c.HasPos()
 	}
-	return nil
+	return false
 }
 
 func Example(t Table) Model {
@@ -171,11 +177,11 @@ func ToFormname(t Table) string {
 	return ""
 }
 
-func SaveModel(iPtr *Model) error {
-	return SaveModelWith(iPtr, nil)
+func saveModel(iPtr *Model) error {
+	return saveModelWith(iPtr, nil)
 }
 
-func SaveModelWith(iPtr *Model, param map[string]interface{}) error {
+func saveModelWith(iPtr *Model, param map[string]interface{}) error {
 	mPtr := reflect.New(reflect.TypeOf(*iPtr))
 	m := mPtr.Elem()
 	m.Set(reflect.ValueOf(*iPtr))
@@ -186,14 +192,14 @@ func SaveModelWith(iPtr *Model, param map[string]interface{}) error {
 		m.FieldByName(k).Set(reflect.ValueOf(v))
 	}
 
-	err := DB.Table(t.(string)).Save(mPtr.Interface()).Error
+	err := DB.Table(t).Save(mPtr.Interface()).Error
 	if err != nil {
 		return err
 	}
 
 	id := m.FieldByName("Id").Int()
 	n := New(t)
-	err = DB.Table(t.(string)).Where("Id=?", id).First(n).Error
+	err = DB.Table(t).Where("id=?", id).First(n).Error
 	if err != nil {
 		return err
 	}
@@ -203,7 +209,7 @@ func SaveModelWith(iPtr *Model, param map[string]interface{}) error {
 }
 
 func Tablename(m Model) string {
-	s := Scope{Value: m}
+	s := gorm.Scope{Value: m}
 	return s.TableName()
 }
 

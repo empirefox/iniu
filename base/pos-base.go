@@ -2,31 +2,22 @@ package base
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/jinzhu/gorm"
-	un "github.com/tobyhede/go-underscore"
 
 	. "github.com/empirefox/iniu/gorm/db"
 	. "github.com/empirefox/iniu/gorm/mod"
 )
 
 var (
-	AnyIp func(func(ip IdPos, i int) bool, []IdPos) bool
 	IpKey = "Ips"
 )
-
-func init() {
-	un.MakeAny(&AnyIp)
-}
 
 type IdPos struct {
 	Id     int64
 	Pos    int64
 	Orderd `json:"-" sql:"-"`
-}
-
-func (ip *IdPos) ToMap() map[string]interface{} {
-	return map[string]interface{}{"id": ip.Id, "pos": ip.Pos}
 }
 
 func IpById(t string, id int64) (ip IdPos, err error) {
@@ -40,7 +31,13 @@ func IpByPos(t string, pos int64, fns ...func(*gorm.DB) *gorm.DB) (ip IdPos, err
 }
 
 func IpBeforeOrAfterAnd(t string, isBefore bool, pos int64, fns ...func(*gorm.DB) *gorm.DB) ([]IdPos, error) {
-	return beforeOrAfterAnd(t, true, pos, fns...)
+	q, o := "pos >= ?", "pos asc"
+	if !isBefore {
+		q, o = "pos <= ?", "pos desc"
+	}
+	ips := []IdPos{}
+	err := DB.Table(t).Order(o).Scopes(fns...).Where(q, pos).Limit(2).Find(&ips).Error
+	return ips, err
 }
 
 func IpDb(t string, fns []func(*gorm.DB) *gorm.DB) *gorm.DB {
@@ -50,7 +47,7 @@ func IpDb(t string, fns []func(*gorm.DB) *gorm.DB) *gorm.DB {
 func ToDb(t string, ips []IdPos) error {
 	tx := DB.Begin()
 	for _, ip := range ips {
-		if err := tx.Table(t).UpdateColumn(ip.ToMap()).Error; err != nil {
+		if err := tx.Table(t).Where("id=?", ip.Id).UpdateColumn("pos", ip.Pos).Error; err != nil {
 			tx.Rollback()
 			return err
 		}
@@ -73,27 +70,30 @@ func RearrAndReurnMods(t string, idBase, idBottom, idTop int64, fns ...func(*gor
 
 	var reserved int64 = -2
 	size := len(ips)
-	offset := false
-	isMod := false
+	var offset bool
+	var modTag int
 	for i := range ips {
-		ip := ips[size-1-i]
+		ip := &ips[size-1-i]
 		ip.Pos = int64(i)*step + 1
 		if offset {
 			ip.Pos += step
 		}
 		if idBase == ip.Id {
 			offset = true
-			reserved = ip.Pos
+			reserved = ip.Pos + step
 		}
 
-		if idBottom == ip.Id {
-			isMod = true
+		if idBottom == ip.Id || idTop == ip.Id {
+			modTag++
 		}
-		if isMod && idBottom|idTop != 0 && len(mods) <= secureSliceLen {
-			mods = append(mods, ip)
-		}
-		if idTop == ip.Id {
-			isMod = false
+		if idBottom|idTop != 0 && len(mods) <= secureSliceLen {
+			switch modTag {
+			case 1:
+				mods = append(mods, *ip)
+			case 2:
+				mods = append(mods, *ip)
+				modTag++
+			}
 		}
 	}
 	if err := ToDb(t, ips); err != nil {
@@ -119,12 +119,13 @@ func Exchange(t string, id1, id2 int64) error {
 	return ExchangeIp(t, ips...)
 }
 
-func NewPosUp(t string, idBase, fns ...func(*gorm.DB) *gorm.DB) (int64, []IdPos, error) {
+func NewPosUp(t string, idBase int64, fns ...func(*gorm.DB) *gorm.DB) (int64, []IdPos, error) {
 	return NewPosUpBetween(t, idBase, idBase, idBase, fns...)
 }
 
 func NewPosUpBetween(t string, idBase, idBottom, idTop int64, fns ...func(*gorm.DB) *gorm.DB) (int64, []IdPos, error) {
 	var baseIp, bottomIp, topIp, maxIp IdPos
+	var err error
 
 	maxIp, err = max(t, fns...)
 	if err != nil {
@@ -132,15 +133,15 @@ func NewPosUpBetween(t string, idBase, idBottom, idTop int64, fns ...func(*gorm.
 		if err == gorm.RecordNotFound {
 			return 1, nil, nil
 		}
-		return -2, nil, err
+		return -1, nil, err
 	}
 
 	// insert up to max
 	if maxIp.Id == idBase {
-		return maxIp.Pos + step, nil
+		return maxIp.Pos + step, nil, nil
 	}
 
-	err := DB.Table(t).Where("id=?", idBase).First(&baseIp).Error
+	err = DB.Table(t).Where("id=?", idBase).First(&baseIp).Error
 	if err != nil {
 		return -1, nil, err
 	}
@@ -156,19 +157,19 @@ func NewPosUpBetween(t string, idBase, idBottom, idTop int64, fns ...func(*gorm.
 	base, bottom, top := baseIp.Pos, bottomIp.Pos, topIp.Pos
 
 	if base > top || base < bottom {
-		return -2, nil, errors.New("wrong parents")
+		return -1, nil, errors.New("wrong parents")
 	}
 
 	ips := []IdPos{}
 	fixedTop := top + 2*step + 1
 	err = IpDb(t, fns).Where("pos BETWEEN ? AND ?", bottom, fixedTop).Find(&ips).Error
 	if err != nil {
-		return -2, nil, err
+		return -1, nil, err
 	}
 
-	index := indexWithId(ips, base)
+	index := indexWithId(ips, baseIp)
 	if index == -1 {
-		return -2, nil, errors.New("base pos has been removed")
+		return -1, nil, errors.New("base pos has been removed")
 	}
 
 	topPos := ips[0].Pos
@@ -187,8 +188,8 @@ func NewPosUpBetween(t string, idBase, idBottom, idTop int64, fns ...func(*gorm.
 		topSpace = -1
 	}
 
-	newPos, mods, ok := handleNewPos(ips, index, topSpace)
-	if !ok {
+	newPos, mods, errHp := handleNewPos(ips, index, topSpace)
+	if errHp != nil {
 		// maybe could not been called here,just for assurance
 		return RearrAndReurnMods(t, idBase, bottomIp.Id, topIp.Id, fns...)
 	}
@@ -201,15 +202,17 @@ func NewPosUpBetween(t string, idBase, idBottom, idTop int64, fns ...func(*gorm.
 	return newPos, mods, nil
 }
 
-func ToTop(t string, id int64, fns ...func(*gorm.DB) *gorm.DB) (IdPos, error) {
+func ToTop(t string, id int64, fns ...func(*gorm.DB) *gorm.DB) (ip IdPos, err error) {
+	var maxIp IdPos
 	var newPos int64
 	maxIp, err = max(t, fns...)
+	fmt.Println(maxIp)
 	if err != nil {
 		if err == gorm.RecordNotFound {
 			newPos = 1
 			goto SAVE
 		}
-		return nil, err
+		return ip, err
 	}
 	if id == maxIp.Id {
 		return maxIp, nil
@@ -217,12 +220,13 @@ func ToTop(t string, id int64, fns ...func(*gorm.DB) *gorm.DB) (IdPos, error) {
 	newPos = maxIp.Pos + step
 
 SAVE:
-	ip := IdPos{Id: id, Pos: newPos}
+	ip = IdPos{Id: id, Pos: newPos}
 	err = ToDb(t, []IdPos{ip})
 	if err != nil {
-		return nil, err
+		return ip, err
 	}
 
+	fmt.Println(ip)
 	return ip, nil
 }
 
@@ -236,7 +240,7 @@ func ToBottom(t string, id int64, fns ...func(*gorm.DB) *gorm.DB) ([]IdPos, erro
 	}
 
 	if minIp.Pos > 1 {
-		return []IdPos{{Id: id, Pos: (minIp.Pos + 1) / 2}}
+		return []IdPos{{Id: id, Pos: (minIp.Pos + 1) / 2}}, nil
 	}
 
 	newPos, mods, err := NewPosUp(t, minIp.Id, fns...)

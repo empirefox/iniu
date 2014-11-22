@@ -23,20 +23,20 @@ func isIgnored(value string) bool {
 
 func ParseSearch(c martini.Context, req *http.Request) {
 	req.ParseForm()
+	search := req.Form.Get("search")
+	switch search {
+	case "", "{}":
+		c.Map(func(db *gorm.DB) *gorm.DB { return db })
+		return
+	}
+
+	raw := map[string]interface{}{}
+	err := json.Unmarshal([]byte(search), &raw)
+	if err != nil {
+		panic(err)
+	}
+	comm.FixNum2Int64(&raw)
 	var searchFn = func(db *gorm.DB) *gorm.DB {
-		search := req.Form.Get("search")
-		switch search {
-		case "", "{}":
-			return db
-		}
-
-		raw := map[string]interface{}{}
-		err := json.Unmarshal([]byte(search), &raw)
-		if err != nil {
-			panic(err)
-		}
-		comm.FixNum2Int64(&raw)
-
 		return db.Where(raw)
 	}
 	c.Map(searchFn)
