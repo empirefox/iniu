@@ -7,43 +7,49 @@ import (
 	. "github.com/jinzhu/copier"
 	"github.com/jinzhu/gorm"
 
+	. "github.com/empirefox/iniu/base"
 	. "github.com/empirefox/iniu/gorm/db"
 	"github.com/empirefox/shirolet"
 )
 
 type (
-	WebPerms       map[string]shirolet.Permit
-	FormWebPerms   map[Table]WebPerms
-	FieldPerms     map[string]shirolet.Permit
-	FormFieldPerms map[Table]FieldPerms
-	JsonFormsMap   map[Table]JsonForm
+	WebPerms        map[string]shirolet.Permit
+	FormWebPerms    map[Table]WebPerms
+	ColumnPerms     map[string]shirolet.Permit
+	FormColumnPerms map[Table]ColumnPerms
+	JsonFormsMap    map[Table]JsonForm
 )
 
 var (
-	permNameReg = regexp.MustCompile(`^([\S]*)Perm$`)
+	permNameReg     = regexp.MustCompile(`^([\S]*)Perm$`)
+	formWebPerms    = make(FormWebPerms)
+	formColumnPerms = make(FormColumnPerms)
 )
 
-func init() {
-	formWebPerms = make(FormWebPerms)
-	formFieldPerms = make(FormFieldPerms)
-	JsonForms = make(JsonFormsMap)
-}
+// exports
+var (
+	JsonForms  = make(JsonFormsMap)
+	WebPerm    = webPerm
+	ColumnPerm = columnPerm
+	InitForms  = initForms
+	InitForm   = initForm
+)
 
-func WebPerm(t Table, method string) shirolet.Permit {
+func webPerm(t Table, method string) shirolet.Permit {
 	if webPerms, found := formWebPerms[t]; found {
 		return webPerms[method]
 	}
 	return nil
 }
 
-func FieldPerm(t Table, field string) shirolet.Permit {
-	if fieldPerms, found := formFieldPerms[t]; found {
-		return fieldPerms[field]
+func columnPerm(t Table, column string) shirolet.Permit {
+	if fieldPerms, found := formColumnPerms[t]; found {
+		return fieldPerms[column]
 	}
 	return nil
 }
 
-func InitForms() {
+func initForms() {
 	forms := []Form{}
 	err := DB.Find(&forms).Error
 	if err != nil {
@@ -51,20 +57,24 @@ func InitForms() {
 	}
 
 	for _, form := range forms {
-		InitForm(&form)
+		InitForm(form)
 	}
 }
 
-func InitForm(formPtr *Form) {
+func initForm(form Form) {
+	if form.Id == 0 {
+		return
+	}
+
 	fields := []Field{}
-	err := DB.Model(formPtr).Related(&fields).Error
+	err := DB.Model(form).Related(&fields).Error
 	if err != nil && err != gorm.RecordNotFound {
 		panic(err)
 	}
-	formPtr.Fields = fields
+	form.Fields = fields
 
-	formType := reflect.TypeOf(*formPtr)
-	formValue := reflect.ValueOf(*formPtr)
+	formType := reflect.TypeOf(form)
+	formValue := reflect.ValueOf(form)
 	tarTable := ToTable(formValue.FieldByName("Name").String())
 	fieldSize := formType.NumField()
 
@@ -74,32 +84,32 @@ func InitForm(formPtr *Form) {
 		if formWebName := formType.Field(i).Name; permNameReg.MatchString(formWebName) {
 			k := permNameReg.ReplaceAllString(formWebName, "$1")
 			v := shirolet.NewPermitRaw(formValue.Field(i).String())
-			formWebPermMap[k] = v
+			webPermMap[k] = v
 		}
 	}
 	formWebPerms[tarTable] = webPermMap
 
-	// fieldPermMap
-	fieldPermMap := make(FieldPerms)
+	// columnPermMap
+	columnPermMap := make(ColumnPerms)
 	for _, field := range fields {
-		formFieldValue := reflect.ValueOf(field)
-		k := formFieldValue.FieldByName("Name").String()
-		v := shirolet.NewPermitRaw(formFieldValue.FieldByName("Perm").String())
-		fieldPermMap[k] = v
+		formColumnValue := reflect.ValueOf(field)
+		k := gorm.ToSnake(formColumnValue.FieldByName("Name").String())
+		v := shirolet.NewPermitRaw(formColumnValue.FieldByName("Perm").String())
+		columnPermMap[k] = v
 	}
-	formFieldPerms[tarTable] = fieldPermMap
+	formColumnPerms[tarTable] = columnPermMap
 
 	// Newid to New
 	if newId := formValue.FieldByName("Newid").Int(); newId != 0 {
 		tarM := New(tarTable)
 		if tarM != nil && DB.Table(tarTable).Where("id = ?", newId).First(tarM).Error == nil {
-			formPtr.New = tarM
+			form.New = tarM
 		}
 	}
 
 	// Copy
-	jform := &JsonForm{}
-	Copy(formPtr, jform)
+	jform := JsonForm{}
+	Copy(&jform, &form)
 
 	// JsonForms
 	JsonForms[tarTable] = jform

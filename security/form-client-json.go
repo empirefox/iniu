@@ -1,17 +1,16 @@
 package security
 
 import (
-	. "github.com/empirefox/iniu/base"
 	. "github.com/jinzhu/copier"
 )
 
 type JsonForm struct {
-	Name        *string     `json:",omitempty" binding:"required" sql:"not null;type:varchar(64);unique"`
-	Description *string     `json:",omitempty"                    sql:"type:varchar(128)"`
-	Pos         *int64      `json:",omitempty" binding:"required"`
-	Title       *string     `json:",omitempty"                    sql:"type:varchar(64)"`
+	Name        string      `json:",omitempty"`
+	Description string      `json:",omitempty"`
+	Pos         int64       `json:",omitempty"`
+	Title       string      `json:",omitempty"`
 	JsonFields  []JsonField `json:"Fields,omitempty"`
-	New         interface{} `json:",omitempty"                    sql:"-"`
+	New         interface{} `json:",omitempty"`
 }
 
 func (jform *JsonForm) Fields(fields []Field) {
@@ -19,20 +18,20 @@ func (jform *JsonForm) Fields(fields []Field) {
 }
 
 type JsonField struct {
-	Name        *string `json:",omitempty" binding:"required" sql:"not null;type:varchar(64)"`
-	Description *string `json:",omitempty"                    sql:"type:varchar(128)"`
-	Pos         *int64  `json:",omitempty" binding:"required"`
-	Title       *string `json:",omitempty"                    sql:"type:varchar(64)"`
-	Type        *string `json:",omitempty"                    sql:"type:varchar(16)"`
-	Placeholder *string `json:",omitempty"                    sql:"type:varchar(32)"`
-	Required    *bool   `json:",omitempty"`
-	Readable    *bool   `json:",omitempty"`
-	Readonly    *bool   `json:",omitempty"`
-	Pattern     *string `json:",omitempty"                    sql:"type:varchar(64)"`
-	Minlength   *int    `json:",omitempty"`
-	Maxlength   *int    `json:",omitempty"`
-	Min         *string `json:",omitempty"                    sql:"type:varchar(16)"`
-	Max         *string `json:",omitempty"                    sql:"type:varchar(16)"`
-	Help        *string `json:",omitempty"                    sql:"type:varchar(64)"`
-	Ops         *string `json:",omitempty"                    sql:"type:text"`
+	Name        string `json:",omitempty"`
+	Description string `json:",omitempty"`
+	Pos         int64  `json:",omitempty"`
+	Title       string `json:",omitempty"`
+	Type        string `json:",omitempty"`
+	Placeholder string `json:",omitempty"`
+	Required    bool   `json:",omitempty"`
+	Readable    bool   `json:",omitempty"`
+	Readonly    bool   `json:",omitempty"`
+	Pattern     string `json:",omitempty"`
+	Minlength   int    `json:",omitempty"`
+	Maxlength   int    `json:",omitempty"`
+	Min         string `json:",omitempty"`
+	Max         string `json:",omitempty"`
+	Help        string `json:",omitempty"`
+	Ops         string `json:",omitempty"`
 }

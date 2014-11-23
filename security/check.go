@@ -2,12 +2,12 @@ package security
 
 import (
 	"flag"
+	"net/http"
+
 	"github.com/bradrydzewski/go.auth"
 	"github.com/dchest/uniuri"
-	"github.com/empirefox/iniu/comm"
 	"github.com/go-martini/martini"
 	"github.com/martini-contrib/render"
-	"net/http"
 )
 
 const (
@@ -141,7 +141,7 @@ func innerCheck(v []ValidateFunc, vType int, r render.Render, req *http.Request)
 		switch vType {
 		case CHECK_ALL, CHECK_THIS:
 			if !f(a, c) {
-				comm.JsonNoPerm(r)
+				r.JSON(http.StatusForbidden, "")
 				return
 			}
 			return
@@ -149,47 +149,43 @@ func innerCheck(v []ValidateFunc, vType int, r render.Render, req *http.Request)
 			if f(a, c) {
 				return
 			}
-			comm.JsonNoPerm(r)
+			r.JSON(http.StatusForbidden, "")
 			return
 		default:
-			comm.Json(r, 1, "未知验证类型")
+			r.JSON(http.StatusNotImplemented, "")
 			return
 		}
 	}
 }
 
-//获取账户并map,如果没有登录则转到登录页面
-var CheckLogin = func() martini.Handler {
+var CheckLogin = func(redirect bool) martini.Handler {
 	return func(c martini.Context, r render.Render, req *http.Request) {
 		//跳过验证
 		if Skip {
+			c.Map(&Account{
+				Name:      "empirefox",
+				Enabled:   true,
+				HoldsPerm: "*",
+			})
+			c.Map(&Oauth{
+				Oid:       "empirefox@sina.com",
+				Provider:  "google",
+				Name:      "empirefox@sina",
+				Enabled:   true,
+				Validated: true,
+			})
 			return
 		}
 
 		user, err := auth.GetUserCookie(req)
 		//没有登录
 		if err != nil || user.Id() == "" {
-			r.Redirect(auth.Config.LoginRedirect, http.StatusFound)
-		}
-		account, current := FindAccount(user.Provider(), user.Id())
-		c.Map(account)
-		c.Map(current)
-	}
-}
-
-//获取账户并map,如果没有登录则map空账户
-var CheckLoginQuiet = func() martini.Handler {
-	return func(c martini.Context, r render.Render, req *http.Request) {
-		//跳过验证
-		if Skip {
-			return
-		}
-
-		user, err := auth.GetUserCookie(req)
-		//没有登录
-		if err != nil || user.Id() == "" {
-			c.Map(&Account{})
-			c.Map(&Oauth{})
+			if redirect {
+				r.Redirect(auth.Config.LoginRedirect, http.StatusFound)
+			} else {
+				c.Map(&Account{})
+				c.Map(&Oauth{})
+			}
 			return
 		}
 		account, current := FindAccount(user.Provider(), user.Id())

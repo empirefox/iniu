@@ -142,9 +142,6 @@ func Link(m martini.Router, model Model, h ModelHandlers) {
 
 var CheckWeb = func(method string) martini.Handler {
 	return func(t Table, r render.Render, a *security.Account, model Model) {
-		if security.Skip {
-			return
-		}
 		p := security.WebPerm(t, method)
 		if !a.Permitted(p) {
 			r.JSON(http.StatusUnauthorized, "")
