@@ -162,7 +162,7 @@ func handleNewPos(ips []IdPos, iBase int, topSpace int64) (int64, []IdPos, error
 }
 
 func max(t string, fns ...func(*gorm.DB) *gorm.DB) (ip IdPos, err error) {
-	err = IpDb(t, fns).First(&ip).Error
+	err = OrderIpDb(t, true, fns).First(&ip).Error
 	return
 }
 

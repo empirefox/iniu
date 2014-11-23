@@ -2,12 +2,10 @@ package base
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/jinzhu/gorm"
 
 	. "github.com/empirefox/iniu/gorm/db"
-	. "github.com/empirefox/iniu/gorm/mod"
 )
 
 var (
@@ -15,9 +13,8 @@ var (
 )
 
 type IdPos struct {
-	Id     int64
-	Pos    int64
-	Orderd `json:"-" sql:"-"`
+	Id  int64 `order:"auto"`
+	Pos int64
 }
 
 func IpById(t string, id int64) (ip IdPos, err error) {
@@ -41,7 +38,7 @@ func IpBeforeOrAfterAnd(t string, isBefore bool, pos int64, fns ...func(*gorm.DB
 }
 
 func IpDb(t string, fns []func(*gorm.DB) *gorm.DB) *gorm.DB {
-	return DB.Table(t).Order("pos desc").Scopes(fns...).Select("id,pos")
+	return DB.Table(t).Scopes(fns...).Select("id,pos")
 }
 
 func OrderIpDb(t string, isUp bool, fns []func(*gorm.DB) *gorm.DB) *gorm.DB {
@@ -214,7 +211,6 @@ func ToTop(t string, id int64, fns ...func(*gorm.DB) *gorm.DB) (ip IdPos, err er
 	var maxIp IdPos
 	var newPos int64
 	maxIp, err = max(t, fns...)
-	fmt.Println(maxIp)
 	if err != nil {
 		if err == gorm.RecordNotFound {
 			newPos = 1
@@ -234,7 +230,6 @@ SAVE:
 		return ip, err
 	}
 
-	fmt.Println(ip)
 	return ip, nil
 }
 

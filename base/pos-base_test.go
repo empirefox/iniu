@@ -174,7 +174,8 @@ func TestToBottom(t *testing.T) {
 	Convey("置底", t, func() {
 		Convey("not in bondry", func() {
 			// place 8 to bottom
-			ips, _ := ToBottom(xchgs, 5)
+			ips, err := ToBottom(xchgs, 5)
+			So(err, ShouldBeNil)
 			So(ips, ShouldResemble, []IdPos{{Id: 1, Pos: 2}, {Id: 5, Pos: 1}})
 			e := Xchg{}
 			DB.Table(xchgs).Last(&e, 5)

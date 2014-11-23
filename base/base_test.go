@@ -11,14 +11,16 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	. "github.com/empirefox/iniu/gorm/db"
+	. "github.com/empirefox/iniu/gorm/mod"
 )
 
 type Xchg struct {
-	Id  int64
+	Id  int64 `order:"auto"`
 	Pos int64
 }
 
 func init() {
+	AutoOrder()
 	Register(Xchg{})
 }
 
