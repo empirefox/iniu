@@ -41,7 +41,15 @@ func IpBeforeOrAfterAnd(t string, isBefore bool, pos int64, fns ...func(*gorm.DB
 }
 
 func IpDb(t string, fns []func(*gorm.DB) *gorm.DB) *gorm.DB {
-	return DB.Table(t).Scopes(fns...).Select("id,pos")
+	return DB.Table(t).Order("pos desc").Scopes(fns...).Select("id,pos")
+}
+
+func OrderIpDb(t string, isUp bool, fns []func(*gorm.DB) *gorm.DB) *gorm.DB {
+	o := "pos asc"
+	if isUp {
+		o = "pos desc"
+	}
+	return DB.Table(t).Order(o).Scopes(fns...).Select("id,pos")
 }
 
 func ToDb(t string, ips []IdPos) error {
