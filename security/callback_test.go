@@ -6,17 +6,25 @@ package security
 import (
 	"testing"
 
+	"github.com/golang/glog"
 	. "github.com/smartystreets/goconvey/convey"
 
+	. "github.com/empirefox/iniu/base"
 	. "github.com/empirefox/iniu/gorm/db"
 	"github.com/empirefox/shirolet"
 )
+
+type Callback struct {
+	Id        int64
+	Name      string
+	Protected string
+}
 
 func TestContext(t *testing.T) {
 	Convey("Context", t, func() {
 
 		Convey("BeforeSave", func() {
-			ColumnPerm = func(t Table, column string) shirolet.Permit {
+			mockColumnPerm := func(t Table, column string) shirolet.Permit {
 				switch column {
 				case "name":
 					return shirolet.NewPermit("save:name")
@@ -30,40 +38,120 @@ func TestContext(t *testing.T) {
 				Enabled:   true,
 				HoldsPerm: "save:name",
 			}
-			exist := &Callback{
-				Id:        1,
-				Name:      "empirefox",
-				Protected: "secret",
-			}
-			scope := DB.Set("context:account", account).NewScope(exist)
-			context := Context{}
-			context.BeforeSave(scope)
 
-			//check
-			for _, field := range scope.Fields() {
-				switch field.DBName {
-				case "name":
-					So(field.IsIgnored, ShouldBeFalse)
-				case "protected":
-					So(field.IsIgnored, ShouldBeTrue)
+			Convey("should check struct", func() {
+				ColumnPerm = mockColumnPerm
+				defer func() {
+					ColumnPerm = columnPerm
+				}()
+				exist := &Callback{
+					Id:        1,
+					Name:      "empirefox",
+					Protected: "secret",
 				}
-			}
-		})
+				db := DB.Set("context:account", account)
+				scope := db.NewScope(exist)
+				context := Context{}
+				context.BeforeSave(scope)
 
-		Convey("AfterSave", func() {
-			recoveryCallback()
-			So(superDB.Save(&a).Error, ShouldBeNil)
+				So(db.Error, ShouldBeNil)
 
-			Convey("should find account", func() {
-				aPtr, oPtr := FindAccount("google", "empirefox@sina.com")
-				So(aPtr.Name, ShouldEqual, "empirefox")
-				So(oPtr.Name, ShouldEqual, "empirefox@sina")
+				//check
+				for _, field := range scope.Fields() {
+					switch field.DBName {
+					case "name":
+						So(field.IsIgnored, ShouldBeFalse)
+					case "protected":
+						So(field.IsIgnored, ShouldBeTrue)
+					}
+				}
 			})
 
-			Convey("should not find account", func() {
-				aPtr, oPtr := FindAccount("google", "empirefox@sina")
-				So(aPtr.Name, ShouldEqual, "")
-				So(oPtr.Name, ShouldEqual, "")
+			Convey("should check map", func() {
+				ColumnPerm = mockColumnPerm
+				defer func() {
+					ColumnPerm = columnPerm
+				}()
+				exist := map[string]interface{}{
+					"name":      "empirefox",
+					"protected": "secret",
+				}
+				scope := DB.Set("context:account", account).NewScope(&Callback{}).InstanceSet("gorm:update_attrs", exist)
+				context := Context{}
+				context.BeforeSave(scope)
+
+				//check
+				updateAttrs, found := scope.InstanceGet("gorm:update_attrs")
+				So(found, ShouldBeTrue)
+				filterd := false
+				for key := range updateAttrs.(map[string]interface{}) {
+					So(key, ShouldNotEqual, "protected")
+					if key == "name" {
+						filterd = true
+					}
+				}
+				So(filterd, ShouldBeTrue)
+			})
+		})
+
+		Convey("AfterTransaction", func() {
+			glog.Infoln("AfterTransaction")
+			simpleForm := Form{
+				Name:       "SimpleForm",
+				Pos:        9,
+				Newid:      1,
+				RemovePerm: "sys:remove:sf",
+			}
+			simpleFields := []Field{
+				{
+					Name: "field1",
+					Pos:  1,
+					Perm: "perm1",
+				},
+			}
+			simpleForm.Fields = simpleFields
+
+			recoveryForm()
+			So(superDB.Save(&simpleForm).Error, ShouldBeNil)
+			InitForms()
+
+			Convey("should not affect when it is not form or field", func() {
+				form := Form{}
+				err := DB.Raw(`SELECT * FROM "forms" WHERE ("id" = $1)`, "1").Scan(&form).Error
+				So(err, ShouldBeNil)
+				a := Account{
+					Name:      "empirefox",
+					Enabled:   true,
+					HoldsPerm: "a:b",
+				}
+				recoveryAccount()
+				So(superDB.Save(&a).Error, ShouldBeNil)
+
+				jf, ok := JsonForms[simpleFormTable]
+				So(ok, ShouldBeTrue)
+				So(jf.Name, ShouldEqual, "SimpleForm")
+			})
+			Convey("should refresh form when it is form", func() {
+				FormTableMap["FixedName"] = "FixedName"
+				simpleForm.Name = "FixedName"
+				So(superDB.Save(&simpleForm).Error, ShouldBeNil)
+
+				jf, ok := JsonForms["FixedName"]
+				So(ok, ShouldBeTrue)
+				So(jf.Name, ShouldEqual, "FixedName")
+			})
+			Convey("should refresh form when it is field", func() {
+				field := Field{}
+				So(superDB.First(&field).Error, ShouldBeNil)
+
+				p := columnPerm(simpleFormTable, "field1")
+				So(p, ShouldResemble, shirolet.NewPermit("perm1"))
+
+				field.Perm = "perm2"
+				So(superDB.Save(&field).Error, ShouldBeNil)
+
+				p = columnPerm(simpleFormTable, "field1")
+				So(p, ShouldResemble, shirolet.NewPermit("perm2"))
 			})
 		})
 	})

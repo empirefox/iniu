@@ -2,17 +2,29 @@ package security
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
+	"strings"
 
+	"github.com/golang/glog"
 	"github.com/jinzhu/gorm"
 
-	. "github.com/empirefox/iniu/base"
+	. "github.com/empirefox/iniu/gorm/db"
 	"github.com/empirefox/shirolet"
 )
 
 var (
-	AccountNotFound = errors.New("account not found")
+	AccountNotFound   = errors.New("account not found")
+	RefreshFormFailed = errors.New("refresh form failed")
 )
+
+func init() {
+	gorm.DefaultCallback.Update().After("gorm:commit_or_rollback_transaction").Register("gorm:after_transaction", AfterTransaction)
+}
+
+func AfterTransaction(scope *gorm.Scope) {
+	scope.CallMethod("AfterTransaction")
+}
 
 type Context struct {
 }
@@ -31,7 +43,7 @@ func (c *Context) BeforeSave(scope *gorm.Scope) {
 	}
 
 	table := scope.TableName()
-	if updateAttrs, found := scope.Get("gorm:update_attrs"); !found {
+	if updateAttrs, found := scope.InstanceGet("gorm:update_attrs"); !found {
 		for key, field := range scope.Fields() {
 			n := field.Name
 			if n == "CreatedAt" || !account.Permitted(ColumnPerm(table, key)) {
@@ -56,38 +68,61 @@ func (c *Context) BeforeSave(scope *gorm.Scope) {
 	}
 }
 
-func (c *Context) AfterSave(scope *gorm.Scope) {
+func (c *Context) AfterTransaction(scope *gorm.Scope) error {
 	if !scope.HasError() {
-		switch scope.TableName() {
-		case "forms":
-			var dest = scope.IndirectValue()
-			switch dest.Kind() {
-			case reflect.Slice:
-				ForEach(dest.Interface(), func(mPtr interface{}) error {
-					InitForm(*(mPtr.(*Form)))
-					return nil
-				})
-			case reflect.Ptr:
-				InitForm(dest.Elem().Interface().(Form))
-			case reflect.Struct:
-				InitForm(dest.Interface().(Form))
-			}
-		case "fields":
-			var dest = scope.IndirectValue()
-			var field = dest.Interface()
-			if dest.Kind() == reflect.Slice {
-				ForEach(dest.Interface(), func(mPtr interface{}) error {
-					field = mPtr
-					return errors.New("")
-				})
+		table := scope.TableName()
+		if table == "forms" || table == "fields" {
+			skip := 0
+			if updateAttrs, ok := scope.InstanceGet("gorm:update_attrs"); ok {
+				skip = len(updateAttrs.(map[string]interface{}))
+			} else {
+				for _, field := range scope.Fields() {
+					if !field.IsPrimaryKey && field.IsNormal && !field.IsIgnored {
+						skip++
+					}
+				}
 			}
 
-			f := Form{}
-			e := scope.NewDB().Model(field).Related(&f).Error
-			if e != nil {
-				panic(e)
+			var form = Form{}
+			var err error
+
+			vars := scope.SqlVars[:]
+			defer func() {
+				scope.SqlVars = vars
+			}()
+			scope.SqlVars = []interface{}{}
+			newVars := vars[skip:]
+
+			switch table {
+			case "forms":
+				sql := fmt.Sprintf(
+					"SELECT * FROM %v %v",
+					scope.QuotedTableName(),
+					scope.CombinedConditionSql(),
+				)
+				err = DB.Raw(strings.Replace(sql, "$$", "?", -1), newVars...).Scan(&form).Error
+			case "fields":
+				s := scope.NewDB().Limit(1).NewScope(&Field{})
+				s.Raw(fmt.Sprintf(
+					"SELECT form_id FROM fields %v",
+					scope.CombinedConditionSql(),
+				))
+				var formId int64
+				err = s.DB().QueryRow(s.Sql, newVars...).Scan(&formId)
+				if err != nil {
+					glog.Infoln(err)
+					return RefreshFormFailed
+				}
+
+				err = scope.NewDB().Where("id=?", formId).First(&form).Error
 			}
-			InitForm(f)
+
+			if err != nil {
+				glog.Infoln(err)
+				return RefreshFormFailed
+			}
+			InitForm(form)
 		}
 	}
+	return nil
 }

@@ -43,8 +43,8 @@ func webPerm(t Table, method string) shirolet.Permit {
 }
 
 func columnPerm(t Table, column string) shirolet.Permit {
-	if fieldPerms, found := formColumnPerms[t]; found {
-		return fieldPerms[column]
+	if columnPerms, found := formColumnPerms[t]; found {
+		return columnPerms[column]
 	}
 	return nil
 }

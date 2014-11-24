@@ -29,7 +29,7 @@ func TestJsonForms(t *testing.T) {
 
 		simpleFields := []Field{
 			{
-				Name: "field1",
+				Name: "field",
 				Pos:  1,
 				Perm: "sys:save:field1",
 			},
@@ -56,7 +56,7 @@ func TestJsonForms(t *testing.T) {
 			removePerm := WebPerm(simpleFormTable, "Remove")
 			So(removePerm, ShouldResemble, shirolet.NewPermit("sys:remove:sf"))
 
-			fieldPerm := ColumnPerm(simpleFormTable, "field1")
+			fieldPerm := ColumnPerm(simpleFormTable, "field")
 			So(fieldPerm, ShouldResemble, shirolet.NewPermit("sys:save:field1"))
 		})
 	})
