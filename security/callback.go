@@ -68,6 +68,7 @@ func (c *Context) BeforeSave(scope *gorm.Scope) {
 	}
 }
 
+// TODO maybe select record after every save?
 func (c *Context) AfterTransaction(scope *gorm.Scope) error {
 	if !scope.HasError() {
 		table := scope.TableName()

@@ -11,6 +11,12 @@ import (
 	"github.com/empirefox/shirolet"
 )
 
+var (
+	// exports
+	FindAccount = findAccount
+	LegalOauth  = legalOauth
+)
+
 //Provider:Google,Github,Qq,Weibo,Baidu,Souhu,Netease,Douban
 type Oauth struct {
 	Id          int64     `json:",omitempty"`
@@ -59,7 +65,7 @@ func (a *Account) Permitted(p shirolet.Permit) bool {
 }
 
 // a current Account, c current Oauth logged
-func FindAccount(provider, oid string) (*Account, *Oauth) {
+func findAccount(provider, oid string) (*Account, *Oauth) {
 	var a Account
 	var c Oauth
 	if err := DB.Where(Oauth{Provider: provider, Oid: oid}).First(&c).Error; err != nil {
@@ -72,7 +78,7 @@ func FindAccount(provider, oid string) (*Account, *Oauth) {
 	return &a, &c
 }
 
-func LegalOauth(a *Account, c *Oauth) bool {
+func legalOauth(a *Account, c *Oauth) bool {
 	return a.Enabled && c.Enabled && c.Validated
 }
 func init() {

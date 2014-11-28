@@ -22,11 +22,6 @@ var TableForms = func(r render.Render, a *security.Account) {
 		panic(err)
 	}
 
-	if security.Skip {
-		r.JSON(http.StatusOK, tfs)
-		return
-	}
-
 	result := []TableForm{}
 	for _, tf := range tfs {
 		p := security.WebPerm(tf.Name, "Form")

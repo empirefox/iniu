@@ -1,4 +1,3 @@
-//需设置环境变量
 //GORM_DIALECT=mysql DB_URL="gorm:gorm@/gorm?charset=utf8&parseTime=True"
 //GORM_DIALECT=postgres DB_URL="user=gorm dbname=gorm sslmode=disable" PORT=8080 goconvey
 //GORM_DIALECT=sqlite3 DB_URL=/tmp/gorm.DB go test

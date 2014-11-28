@@ -1,13 +1,9 @@
 package web
 
 import (
-	"net/http"
-
 	"github.com/go-martini/martini"
 	"github.com/golang/glog"
 	"github.com/martini-contrib/binding"
-	"github.com/martini-contrib/render"
-	"github.com/oleiade/reflections"
 
 	. "github.com/empirefox/iniu/base"
 	"github.com/empirefox/iniu/security"
@@ -127,7 +123,7 @@ func Link(m martini.Router, model Model, h ModelHandlers) {
 		r.Put("/remove", CheckWeb("Remove"), binding.Bind(IdsData{}), binding.ErrorHandler, h.Remove)
 		r.Delete("/recovery", CheckWeb("Recovery"), h.Recovery)
 		r.Put("/migrate", CheckWeb("AutoMigrate"), h.AutoMigrate)
-		if has, _ := reflections.HasField(model, "Pos"); has {
+		if HasPos(t) {
 			r.Post("/saveup", CheckWeb("Update"), binding.Form(SaveUpData{}), binding.Bind(model, (*Model)(nil)), h.NewUpper)
 			r.Put("/rearrange", CheckWeb("Update"), h.Rearr)
 			r.Post("/modips", CheckWeb("Update"), binding.Bind([]IdPos{}), h.ModIps)
@@ -138,15 +134,6 @@ func Link(m martini.Router, model Model, h ModelHandlers) {
 		}
 
 	}, security.CheckLogin(), BindTable(t))
-}
-
-var CheckWeb = func(method string) martini.Handler {
-	return func(t Table, r render.Render, a *security.Account, model Model) {
-		p := security.WebPerm(t, method)
-		if !a.Permitted(p) {
-			r.JSON(http.StatusUnauthorized, "")
-		}
-	}
 }
 
 func LinkAll(m martini.Router, model Model) {

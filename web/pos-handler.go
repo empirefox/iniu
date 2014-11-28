@@ -3,46 +3,13 @@ package web
 import (
 	"errors"
 	"reflect"
-	"strings"
 
 	"github.com/jinzhu/gorm"
 	"github.com/martini-contrib/render"
-	un "github.com/tobyhede/go-underscore"
 
 	. "github.com/empirefox/iniu/base"
 	. "github.com/empirefox/iniu/gorm/db"
 )
-
-func ScopeFn(data Model, cp string) (func(*gorm.DB) *gorm.DB, error) {
-	var null = func(db *gorm.DB) *gorm.DB {
-		return db
-	}
-
-	if cp == "" {
-		// TODO need to sync with client
-		return null, nil
-	}
-
-	query := map[string]interface{}{}
-	scope := gorm.Scope{Value: data}
-
-	var proccess = func(p string) bool {
-		field, found := scope.FieldByName(p)
-		if found {
-			query[field.DBName] = field.Field.Interface()
-		}
-		return found
-	}
-
-	done := un.EveryString(proccess, strings.Split(cp, "|"))
-	if !done || len(query) == 0 {
-		return nil, errors.New("cp not found")
-	}
-
-	return func(db *gorm.DB) *gorm.DB {
-		return db.Where(query), nil
-	}
-}
 
 type SaveUpData struct {
 	BottomId int64  `form:"b"`
@@ -56,7 +23,7 @@ func SaveUp(t Table, data Model, up SaveUpData, r render.Render) {
 		return
 	}
 
-	wFn, err := ScopeFn(data, up.Cp)
+	wFn, err := CpScopeFn(data, up.Cp)
 	if err != nil {
 		Return(r, err)
 		return
