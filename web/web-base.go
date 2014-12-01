@@ -100,10 +100,11 @@ func WritePager(t Table, pager Pager, w http.ResponseWriter, searchFn func(db *g
 
 	w.Header().Set("X-Total-Items", strconv.FormatInt(total, 10))
 	w.Header().Set("X-Page", strconv.FormatInt(pager.Num, 10))
+	w.Header().Set("X-Page-Size", strconv.FormatInt(pager.Size, 10))
 	w.Header().Set("Access-Control-Expose-Headers", "X-Total-Items, X-Page")
 }
 
-func ReturnAnyway(r render.Render, okOrNotI interface{}, data interface{}) {
+func ReturnAnyway(r render.Render, okOrNot interface{}, data interface{}) {
 	status := http.StatusInternalServerError
 	switch okOrNot := okOrNot.(type) {
 	case nil:

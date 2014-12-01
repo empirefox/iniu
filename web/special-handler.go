@@ -5,7 +5,7 @@ import (
 
 	"github.com/martini-contrib/render"
 
-	. "github.com/empirefox/iniu/gorm/postgres"
+	. "github.com/empirefox/iniu/gorm/db"
 	"github.com/empirefox/iniu/security"
 )
 

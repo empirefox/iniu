@@ -16,106 +16,11 @@ import (
 
 	. "github.com/empirefox/iniu/base"
 	. "github.com/empirefox/iniu/comm"
-	. "github.com/empirefox/iniu/cv"
 	. "github.com/empirefox/iniu/gorm/db"
 	"github.com/empirefox/iniu/gorm/mock"
 	. "github.com/empirefox/iniu/gorm/mod"
 	"github.com/empirefox/iniu/security"
 )
-
-var (
-	webs  = "webs"
-	child = "childs"
-)
-
-type Web struct {
-	Id     int64   `json:",omitempty"`
-	Name   *string `json:",omitempty" binding:"required" sql:"not null;type:varchar(64);unique"`
-	Childs []Child `json:",omitempty"`
-	Orderd `json:"-" sql:"-"`
-}
-
-type Child struct {
-	Id     int64   `json:",omitempty"`
-	Name   *string `json:",omitempty" binding:"required" sql:"not null;type:varchar(64);unique"`
-	WebId  int64   `json:",omitempty" binding:"required"`
-	Orderd `json:"-" sql:"-"`
-}
-
-func init() {
-	DB.LogMode(true)
-	Register(Web{})
-	Register(Child{})
-}
-
-func newWebs(ns ...string) {
-	DB.DropTableIfExists(Web{})
-	DB.CreateTable(Web{})
-
-	for _, n := range ns {
-		DB.Save(&Web{Name: PtrS(n)})
-	}
-}
-
-func newChilds(p int64, ns ...string) {
-	DB.DropTableIfExists(Child{})
-	DB.CreateTable(Child{})
-
-	for _, n := range ns {
-		DB.Save(&Child{WebId: p, Name: PtrS(n)})
-	}
-}
-
-//func TestDF(t *testing.T) {
-//	Convey("测试df", t, func() {
-//		//db mock query Forms
-//		db := mock.DB.Model(&security.Form{})
-//		bdb := mock.NewBackend(db)
-
-//		fs := []security.Form{}
-//		columns := []string{"name", "pos"}
-//		result := `Web,1`
-//		bdb.StubQuery(&fs, testdb.RowsFromCSVString(columns, result))
-
-//		//db mock DB.Model(f).Related(&fields)
-//		db := mock.DB.Model(f)
-//		bdb := mock.NewBackend(db)
-
-//		tfs := []TableForm{}
-//		columns := []string{"name", "title"}
-//		result := `
-//		Form,Form Title
-//		Field,Field Title
-//		`
-//		bdb.StubQuery(&tfs, testdb.RowsFromCSVString(columns, result))
-
-//		//spy security
-//		security.Forms = map[string]*security.ComputedForm{
-//			"Form": &security.ComputedForm{
-//				WebPerms: map[string]shirolet.Permit{
-//					"Form": shirolet.NewPermit("edit:form:Form"),
-//				},
-//			},
-//			"Field": &security.ComputedForm{
-//				WebPerms: map[string]shirolet.Permit{
-//					"Form": shirolet.NewPermit("edit:form:Field"),
-//				},
-//			},
-//		}
-//		hp := "edit:form:Field"
-//		a := &security.Account{HoldsPerm: &hp}
-
-//		req := func(m martini.Router) (*http.Request, error) {
-//			m.Get("/forms", func(c martini.Context) {
-//				c.Map(a)
-//			}, TableForms)
-//			return http.NewRequest("GET", "/forms", nil)
-//		}
-//		res := []TableForm{{Name: "Field", Title: "Field Title"}}
-
-//		So(r, ShouldResponseOk, res)
-//	})
-//}
 
 func TestMF(t *testing.T) {
 	Convey("测试mf", t, func() {
@@ -125,10 +30,10 @@ func TestMF(t *testing.T) {
 			return http.NewRequest("GET", "/form", nil)
 		}
 		res := security.Form{
-			Name: PtrS("Web"),
+			Name: "Web",
 			Fields: []security.Field{
-				{Name: PtrS("Id")},
-				{Name: PtrS("Name")},
+				{Name: "Id"},
+				{Name: "Name"},
 			},
 		}
 		So(req, ShouldResponseOk, res)
@@ -143,10 +48,10 @@ func TestForm(t *testing.T) {
 			return http.NewRequest("GET", "/form", nil)
 		}
 		res := security.Form{
-			Name: PtrS("Web"),
+			Name: "Web",
 			Fields: []security.Field{
-				{Name: PtrS("Id")},
-				{Name: PtrS("Name")},
+				{Name: "Id"},
+				{Name: "Name"},
 			},
 		}
 		So(req, ShouldResponseOk, res)

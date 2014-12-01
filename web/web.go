@@ -44,17 +44,17 @@ var Handlers = ModelHandlers{
 	UpdateAll: UpdateAll,
 
 	// Post /google/save/up?lower=BBB&upper=CCC&cp=Stu,Tech
-	NewUpper: NewUpper,
+	SaveUp: SaveUp,
 
-	SinglePosUp: SinglePosUp,
+	PosUpSingle: PosUpSingle,
 
 	Xpos: Xpos,
 
 	ModIps: ModIps,
 
-	Pos2Top: Pos2Top,
+	PosTop: PosTop,
 
-	Pos2Bottom: Pos2Bottom,
+	PosBottom: PosBottom,
 }
 
 type ModelHandlers struct {
@@ -91,17 +91,17 @@ type ModelHandlers struct {
 	UpdateAll martini.Handler
 
 	// Post /google/save/up?lower=BBB&upper=CCC&cp=Stu,Tech
-	NewUpper martini.Handler
+	SaveUp martini.Handler
 
-	SinglePosUp martini.Handler
+	PosUpSingle martini.Handler
 
 	Xpos martini.Handler
 
 	ModIps martini.Handler
 
-	Pos2Top martini.Handler
+	PosTop martini.Handler
 
-	Pos2Bottom martini.Handler
+	PosBottom martini.Handler
 }
 
 func Link(m martini.Router, model Model, h ModelHandlers) {
@@ -124,13 +124,13 @@ func Link(m martini.Router, model Model, h ModelHandlers) {
 		r.Delete("/recovery", CheckWeb("Recovery"), h.Recovery)
 		r.Put("/migrate", CheckWeb("AutoMigrate"), h.AutoMigrate)
 		if HasPos(t) {
-			r.Post("/saveup", CheckWeb("Update"), binding.Form(SaveUpData{}), binding.Bind(model, (*Model)(nil)), h.NewUpper)
+			r.Post("/saveup", CheckWeb("Update"), binding.Form(SaveUpData{}), binding.Bind(model, (*Model)(nil)), h.SaveUp)
 			r.Put("/rearrange", CheckWeb("Update"), h.Rearr)
 			r.Post("/modips", CheckWeb("Update"), binding.Bind([]IdPos{}), h.ModIps)
 			r.Post("/xpos", CheckWeb("Update"), binding.Bind(Posx{}), h.Xpos)
-			r.Post("/postop", CheckWeb("Update"), binding.Bind(PosParentsData{}), h.Pos2Top)
-			r.Post("/posbottom", CheckWeb("Update"), binding.Bind([]PosParentsData{}), h.Pos2Bottom)
-			r.Post("/singleposup", CheckWeb("Update"), binding.Bind(PosParentsData{}), h.SinglePosUp)
+			r.Post("/postop", CheckWeb("Update"), binding.Bind(PosParentsData{}), h.PosTop)
+			r.Post("/posbottom", CheckWeb("Update"), binding.Bind([]PosParentsData{}), h.PosBottom)
+			r.Post("/singleposup", CheckWeb("Update"), binding.Bind(PosParentsData{}), h.PosUpSingle)
 		}
 
 	}, security.CheckLogin(), BindTable(t))

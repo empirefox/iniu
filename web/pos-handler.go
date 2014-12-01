@@ -8,7 +8,6 @@ import (
 	"github.com/martini-contrib/render"
 
 	. "github.com/empirefox/iniu/base"
-	. "github.com/empirefox/iniu/gorm/db"
 )
 
 type SaveUpData struct {
