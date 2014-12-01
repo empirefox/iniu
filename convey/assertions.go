@@ -30,6 +30,7 @@ func newSlice() slice {
 	return slice{}
 }
 
+// expected: data | [data, code]
 func ShouldResponseOk(actual interface{}, expected ...interface{}) string {
 	request, ok := actual.(func(m martini.Router) (*http.Request, error))
 	if !ok {

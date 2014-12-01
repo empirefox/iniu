@@ -6,7 +6,7 @@ import (
 	"github.com/martini-contrib/binding"
 
 	. "github.com/empirefox/iniu/base"
-	"github.com/empirefox/iniu/security"
+	. "github.com/empirefox/iniu/security"
 )
 
 var Handlers = ModelHandlers{
@@ -16,7 +16,7 @@ var Handlers = ModelHandlers{
 	DbForm: DbForm,
 
 	// Get /google/form
-	Form: Form,
+	ClientForm: ClientForm,
 
 	// Get /google/1?a=a
 	One: One,
@@ -63,7 +63,7 @@ type ModelHandlers struct {
 	DbForm martini.Handler
 
 	// Get /google/form
-	Form martini.Handler
+	ClientForm martini.Handler
 
 	// Get /google/1?a=a
 	One martini.Handler
@@ -114,7 +114,7 @@ func Link(m martini.Router, model Model, h ModelHandlers) {
 
 		r.Get("/mf", CheckWeb("ModelForm"), h.ModelForm)
 		r.Get("/df", CheckWeb("DbForm"), h.DbForm)
-		r.Get("/form", CheckWeb("Form"), h.Form)
+		r.Get("/form", CheckWeb("Form"), h.ClientForm)
 		r.Get(`/1`, CheckWeb("One"), h.One)
 		r.Get("/names", CheckWeb("Names"), h.Names)
 		r.Get(`/page`, CheckWeb("Page"), h.Page)
@@ -128,12 +128,12 @@ func Link(m martini.Router, model Model, h ModelHandlers) {
 			r.Put("/rearrange", CheckWeb("Update"), h.Rearr)
 			r.Post("/modips", CheckWeb("Update"), binding.Bind([]IdPos{}), h.ModIps)
 			r.Post("/xpos", CheckWeb("Update"), binding.Bind(Posx{}), h.Xpos)
-			r.Post("/postop", CheckWeb("Update"), binding.Bind(PosParentsData{}), h.PosTop)
-			r.Post("/posbottom", CheckWeb("Update"), binding.Bind([]PosParentsData{}), h.PosBottom)
-			r.Post("/singleposup", CheckWeb("Update"), binding.Bind(PosParentsData{}), h.PosUpSingle)
+			r.Post("/postop", CheckWeb("Update"), binding.Bind(IdPos{}), h.PosTop)
+			r.Post("/posbottom", CheckWeb("Update"), binding.Bind(IdPos{}), h.PosBottom)
+			r.Post("/singleposup", CheckWeb("Update"), binding.Bind(IdPos{}), binding.Bind(Direction{}), h.PosUpSingle)
 		}
 
-	}, security.CheckLogin(), BindTable(t))
+	}, AuthLogin, BindTable(t))
 }
 
 func LinkAll(m martini.Router, model Model) {

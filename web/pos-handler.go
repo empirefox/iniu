@@ -31,7 +31,7 @@ func SaveUp(t Table, data Model, up SaveUpData, r render.Render) {
 	basePos := reflect.ValueOf(data).FieldByName("Pos").Int()
 
 	var baseIp IdPos
-	baseIp, err = IpByPos(t, basePos, wFn)
+	baseIp, err = IpByPos(t.(string), basePos, wFn)
 	if err != nil {
 		Return(r, err)
 		return
@@ -57,7 +57,7 @@ type RearrData struct {
 
 // require base.ParseSearch ,bind RearrData
 func Rearrange(t Table, data RearrData, r render.Render, searchFn func(db *gorm.DB) *gorm.DB) {
-	_, mods, err := RearrAndReurnMods(t, data.Base, data.Bottom, data.Top, searchFn)
+	_, mods, err := RearrAndReurnMods(t.(string), data.Base, data.Bottom, data.Top, searchFn)
 	ReturnAnyway(r, err, mods)
 }
 
@@ -109,5 +109,5 @@ func PosUpSingle(t Table, data IdPos, dir Direction, r render.Render, searchFn f
 		return
 	}
 
-	Return(r, ExchangeIP(t.(string), ips...))
+	Return(r, ExchangeIp(t.(string), ips...))
 }

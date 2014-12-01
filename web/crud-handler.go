@@ -8,6 +8,7 @@ import (
 
 	. "github.com/empirefox/iniu/base"
 	. "github.com/empirefox/iniu/gorm/db"
+	"github.com/empirefox/iniu/security"
 )
 
 // Get /google/mf
@@ -18,7 +19,7 @@ func ModelForm(t Table, r render.Render) {
 
 // Get /google/df
 func DbForm(t Table, r render.Render) {
-	if sf, ok := JsonForms[t]; ok {
+	if sf, ok := security.JsonForms[t]; ok {
 		if sf.New == nil {
 			sf.New = Example(t)
 		}
@@ -30,8 +31,8 @@ func DbForm(t Table, r render.Render) {
 }
 
 // Get /google/form
-func Form(t Table, r render.Render) {
-	if sf, ok := JsonForms[t]; ok {
+func ClientForm(t Table, r render.Render) {
+	if sf, ok := security.JsonForms[t]; ok {
 		if sf.New == nil {
 			sf.New = Example(t)
 		}
@@ -45,9 +46,9 @@ func Form(t Table, r render.Render) {
 
 // only can get by id?
 // need form IdPosName
-func One(t Table, ipn IdPosName, r render.Render) {
+func One(t Table, data IdData, r render.Render) {
 	m := New(t)
-	err := DB.Table(t.(string)).Where("id=?", ipn.Id).First(m).Error
+	err := DB.Table(t.(string)).Where("id=?", data.Id).First(m).Error
 	Return(r, err, m)
 }
 
@@ -59,7 +60,7 @@ var Names = func(t Table, r render.Render, pager Pager, w http.ResponseWriter, s
 	if !HasPos(t) {
 		selects = "id,name"
 	}
-	if err := DB.Table(t.(string)).Scopes(searchFn).Select(selects).Offset(pager.Offset()).Limit(pager.Limit()).Find(ms).Error; err != nil {
+	if err := DB.Table(t.(string)).Scopes(searchFn).Select(selects).Offset(pager.Offset()).Limit(pager.Limit()).Find(&ms).Error; err != nil {
 		Return(r, err)
 		return
 	}
@@ -75,19 +76,6 @@ var Page = func(t Table, r render.Render, pager Pager, w http.ResponseWriter, se
 		return
 	}
 	Return(r, WritePager(t, pager, w, searchFn), ms)
-}
-
-func Recovery(t Table, r render.Render) {
-	fact := New(t)
-	DB.DropTableIfExists(fact)
-	err := DB.CreateTable(fact).Error
-	Return(r, err)
-}
-
-func AutoMigrate(t Table, r render.Render) {
-	fact := New(t)
-	err := DB.AutoMigrate(fact).Error
-	Return(r, err)
 }
 
 // Put
@@ -118,4 +106,17 @@ func UpdateAll(t Table, ms Models, r render.Render) {
 
 	tx.Commit()
 	Return(r, ms)
+}
+
+func Recovery(t Table, r render.Render) {
+	fact := New(t)
+	DB.DropTableIfExists(fact)
+	err := DB.Table(t.(string)).CreateTable(fact).Error
+	Return(r, err)
+}
+
+func AutoMigrate(t Table, r render.Render) {
+	fact := New(t)
+	err := DB.Table(t.(string)).AutoMigrate(fact).Error
+	Return(r, err)
 }

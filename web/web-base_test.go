@@ -5,6 +5,7 @@ package web
 
 import (
 	"errors"
+	"flag"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -15,7 +16,6 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	. "github.com/empirefox/iniu/base"
-	. "github.com/empirefox/iniu/comm"
 	. "github.com/empirefox/iniu/gorm/db"
 )
 
@@ -37,6 +37,8 @@ type Child struct {
 }
 
 func init() {
+	flag.Set("stderrthreshold", "INFO")
+	flag.Parse()
 	DB.LogMode(true)
 	Register(Web{})
 	Register(Child{})
@@ -100,7 +102,7 @@ func TestCpScopeFn(t *testing.T) {
 			So(err, ShouldBeNil)
 
 			odb := DB.Model(&c)
-			rdb := odb.fn(odb)
+			rdb := odb.Scopes(fn)
 			So(rdb, ShouldEqual, odb)
 			So(rdb.NewScope(&c).Search.WhereConditions, ShouldBeEmpty)
 		})
@@ -110,7 +112,7 @@ func TestCpScopeFn(t *testing.T) {
 			So(err, ShouldBeNil)
 
 			odb := DB.Model(&c)
-			rdb := odb.fn(odb)
+			rdb := odb.Scopes(fn)
 			So(rdb, ShouldNotEqual, odb)
 			So(rdb.NewScope(&c).Search.WhereConditions, ShouldNotBeEmpty)
 		})
@@ -120,7 +122,7 @@ func TestCpScopeFn(t *testing.T) {
 			So(err, ShouldBeNil)
 
 			odb := DB.Model(&c)
-			rdb := odb.fn(odb)
+			rdb := odb.Scopes(fn)
 			So(rdb, ShouldNotEqual, odb)
 			So(rdb.NewScope(&c).Search.WhereConditions, ShouldNotBeEmpty)
 		})
@@ -133,14 +135,14 @@ func TestWritePager(t *testing.T) {
 	}
 	w := httptest.NewRecorder()
 	Convey("WritePager", t, func() {
-		Convey("should return error", func() {
+		Convey("should not found items", func() {
 			newWebs()
 			err := WritePager(webs, Pager{Num: 10, Size: 20}, w, searchFn)
-			So(err, ShouldNotBeNil)
-			So(w.Header().Get("X-Total-Items"), ShouldEqual, "")
-			So(w.Header().Get("X-Page"), ShouldEqual, "")
-			So(w.Header().Get("X-Page-Size"), ShouldEqual, "")
-			So(w.Header().Get("Access-Control-Expose-Headers"), ShouldEqual, "")
+			So(err, ShouldBeNil)
+			So(w.Header().Get("X-Total-Items"), ShouldEqual, "0")
+			So(w.Header().Get("X-Page"), ShouldEqual, "1")
+			So(w.Header().Get("X-Page-Size"), ShouldEqual, "20")
+			So(w.Header().Get("Access-Control-Expose-Headers"), ShouldEqual, "X-Total-Items, X-Page")
 		})
 
 		Convey("should set pager to header", func() {
@@ -158,7 +160,7 @@ func TestWritePager(t *testing.T) {
 func TestReturnAnyway(t *testing.T) {
 	Convey("ReturnAnyway", t, func() {
 		var okOrNot interface{}
-		data := "ok"
+		data := `"ok"`
 
 		m := martini.Classic()
 		m.Use(render.Renderer())
@@ -167,42 +169,42 @@ func TestReturnAnyway(t *testing.T) {
 		r, _ := http.NewRequest("GET", "/ReturnAnyway", nil)
 
 		m.Get("/ReturnAnyway", func(r render.Render) {
-			ReturnAnyway(r, okOrNot, data)
+			ReturnAnyway(r, okOrNot, "ok")
 		})
 
 		Convey("should know bool true", func() {
 			okOrNot = true
 			m.ServeHTTP(w, r)
 			So(w.Code, ShouldEqual, http.StatusOK)
-			So(w.Body, ShouldEqual, data)
+			So(w.Body.String(), ShouldEqual, data)
 		})
 
 		Convey("should know bool false", func() {
 			okOrNot = false
 			m.ServeHTTP(w, r)
 			So(w.Code, ShouldEqual, http.StatusInternalServerError)
-			So(w.Body, ShouldEqual, data)
+			So(w.Body.String(), ShouldEqual, data)
 		})
 
 		Convey("should know nil", func() {
 			okOrNot = nil
 			m.ServeHTTP(w, r)
 			So(w.Code, ShouldEqual, http.StatusOK)
-			So(w.Body, ShouldEqual, data)
+			So(w.Body.String(), ShouldEqual, data)
 		})
 
 		Convey("should know common error", func() {
 			okOrNot = errors.New("temp error")
 			m.ServeHTTP(w, r)
 			So(w.Code, ShouldEqual, http.StatusInternalServerError)
-			So(w.Body, ShouldEqual, data)
+			So(w.Body.String(), ShouldEqual, data)
 		})
 
 		Convey("should know not found error", func() {
 			okOrNot = gorm.RecordNotFound
 			m.ServeHTTP(w, r)
 			So(w.Code, ShouldEqual, http.StatusNotFound)
-			So(w.Body, ShouldEqual, data)
+			So(w.Body.String(), ShouldEqual, data)
 		})
 	})
 }
@@ -218,19 +220,19 @@ func TestReturn(t *testing.T) {
 		r, _ := http.NewRequest("GET", "/Return", nil)
 
 		Convey("no args", func() {
-			data := ""
+			data := `""`
 			m.Get("/Return", func(r render.Render) {
 				Return(r)
 			})
 			Convey("should return ok status", func() {
 				m.ServeHTTP(w, r)
 				So(w.Code, ShouldEqual, http.StatusOK)
-				So(w.Body, ShouldEqual, data)
+				So(w.Body.String(), ShouldEqual, data)
 			})
 		})
 
 		Convey("only conditions", func() {
-			data := ""
+			data := `""`
 			m.Get("/Return", func(r render.Render) {
 				Return(r, okOrNot)
 			})
@@ -238,80 +240,81 @@ func TestReturn(t *testing.T) {
 				okOrNot = true
 				m.ServeHTTP(w, r)
 				So(w.Code, ShouldEqual, http.StatusOK)
-				So(w.Body, ShouldEqual, data)
+				So(w.Body.String(), ShouldEqual, data)
 			})
 			Convey("should know bool false", func() {
-				okOrNot = true
+				okOrNot = false
 				m.ServeHTTP(w, r)
 				So(w.Code, ShouldEqual, http.StatusInternalServerError)
-				So(w.Body, ShouldEqual, data)
+				So(w.Body.String(), ShouldEqual, data)
 			})
 			Convey("should return ok status", func() {
 				okOrNot = nil
 				m.ServeHTTP(w, r)
 				So(w.Code, ShouldEqual, http.StatusOK)
-				So(w.Body, ShouldEqual, data)
+				So(w.Body.String(), ShouldEqual, data)
 			})
 			Convey("should return common error status", func() {
-				okOrNot = errors.New("err")
+				okOrNot = errors.New(`err`)
 				m.ServeHTTP(w, r)
 				So(w.Code, ShouldEqual, http.StatusInternalServerError)
-				So(w.Body, ShouldEqual, "err")
+				So(w.Body.String(), ShouldEqual, `"err"`)
 			})
 			Convey("should return not found error status", func() {
 				okOrNot = gorm.RecordNotFound
 				m.ServeHTTP(w, r)
 				So(w.Code, ShouldEqual, http.StatusNotFound)
-				So(w.Body, ShouldEqual, data)
+				So(w.Body.String(), ShouldEqual, data)
 			})
 			Convey("should return data directly", func() {
 				okOrNot = "data"
 				m.ServeHTTP(w, r)
 				So(w.Code, ShouldEqual, http.StatusOK)
-				So(w.Body, ShouldEqual, "data")
+				So(w.Body.String(), ShouldEqual, `"data"`)
 			})
 		})
 
 		Convey("with data", func() {
-			data := "ok"
+			data := `"ok"`
+			emptyData := `""`
 			m.Get("/Return", func(r render.Render) {
-				Return(r, okOrNot, data)
+				Return(r, okOrNot, "ok")
 			})
 			Convey("should know bool true", func() {
 				okOrNot = true
 				m.ServeHTTP(w, r)
 				So(w.Code, ShouldEqual, http.StatusOK)
-				So(w.Body, ShouldEqual, data)
+				So(w.Body.String(), ShouldEqual, data)
 			})
 			Convey("should know bool false", func() {
-				okOrNot = true
+				okOrNot = false
 				m.ServeHTTP(w, r)
 				So(w.Code, ShouldEqual, http.StatusInternalServerError)
-				So(w.Body, ShouldEqual, "")
+				So(w.Body.String(), ShouldEqual, emptyData)
 			})
 			Convey("should return ok status", func() {
 				okOrNot = nil
 				m.ServeHTTP(w, r)
 				So(w.Code, ShouldEqual, http.StatusOK)
-				So(w.Body, ShouldEqual, data)
+				So(w.Body.String(), ShouldEqual, data)
 			})
 			Convey("should return common error status", func() {
 				okOrNot = errors.New("err")
 				m.ServeHTTP(w, r)
 				So(w.Code, ShouldEqual, http.StatusInternalServerError)
-				So(w.Body, ShouldEqual, "err")
+				So(w.Body.String(), ShouldEqual, `"err"`)
 			})
 			Convey("should return not found error status", func() {
 				okOrNot = gorm.RecordNotFound
 				m.ServeHTTP(w, r)
 				So(w.Code, ShouldEqual, http.StatusNotFound)
-				So(w.Body, ShouldEqual, "")
+				So(w.Body.String(), ShouldEqual, emptyData)
 			})
 			Convey("should return data directly", func() {
 				okOrNot = "data"
 				m.ServeHTTP(w, r)
 				So(w.Code, ShouldEqual, http.StatusOK)
-				So(w.Body, ShouldEqual, data)
+				So(w.Body.String(), ShouldEqual, data)
 			})
 		})
 	})

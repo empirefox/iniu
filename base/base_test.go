@@ -45,7 +45,7 @@ func TestModel(t *testing.T) {
 			smade := []Xchg{}
 			formMap := map[string]interface{}{
 				"Name":   "Xchg",
-				"Fields": []nameOnlyField{{"Id"}, {"Pos"}},
+				"Fields": []NameOnlyField{{"Id"}, {"Pos"}},
 			}
 
 			So(New(xchgs), ShouldResemble, &Xchg{})
@@ -64,7 +64,7 @@ func TestModel(t *testing.T) {
 			smade := []Xchg{}
 			formMap := map[string]interface{}{
 				"Name":   "Xchg",
-				"Fields": []nameOnlyField{{"Id"}, {"Pos"}},
+				"Fields": []NameOnlyField{{"Id"}, {"Pos"}},
 				"New":    Xchg{Pos: 100},
 			}
 

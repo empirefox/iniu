@@ -91,6 +91,11 @@ func selectSql(s *gorm.Scope) string {
 }
 
 func prepareQuerySql(scope *gorm.Scope) {
+	vars := scope.SqlVars[:]
+	defer func() {
+		scope.SqlVars = vars
+	}()
+	scope.SqlVars = []interface{}{}
 	if scope.Search.Raw {
 		scope.Raw(strings.TrimLeft(scope.CombinedConditionSql(), "WHERE "))
 	} else {

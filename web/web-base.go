@@ -50,6 +50,10 @@ type IdsData struct {
 	Ids []int64 `binding:"required"`
 }
 
+type IdData struct {
+	Id int64 `form:"Id" binding:"required" order:"auto"`
+}
+
 func CpScopeFn(data Model, cp string) (func(*gorm.DB) *gorm.DB, error) {
 	var null = func(db *gorm.DB) *gorm.DB {
 		return db
@@ -77,8 +81,8 @@ func CpScopeFn(data Model, cp string) (func(*gorm.DB) *gorm.DB, error) {
 	}
 
 	return func(db *gorm.DB) *gorm.DB {
-		return db.Where(query), nil
-	}
+		return db.Where(query)
+	}, nil
 }
 
 func BindTable(t string) martini.Handler {
@@ -87,6 +91,7 @@ func BindTable(t string) martini.Handler {
 	}
 }
 
+// can be 0
 func Total(t Table, fns ...func(db *gorm.DB) *gorm.DB) (total int64, err error) {
 	err = DB.Table(t.(string)).Scopes(fns...).Count(&total).Error
 	return
@@ -98,10 +103,15 @@ func WritePager(t Table, pager Pager, w http.ResponseWriter, searchFn func(db *g
 		return err
 	}
 
+	if total == 0 {
+		pager.Num = 1
+	}
+
 	w.Header().Set("X-Total-Items", strconv.FormatInt(total, 10))
 	w.Header().Set("X-Page", strconv.FormatInt(pager.Num, 10))
 	w.Header().Set("X-Page-Size", strconv.FormatInt(pager.Size, 10))
 	w.Header().Set("Access-Control-Expose-Headers", "X-Total-Items, X-Page")
+	return nil
 }
 
 func ReturnAnyway(r render.Render, okOrNot interface{}, data interface{}) {
@@ -133,7 +143,7 @@ func Return(r render.Render, data ...interface{}) {
 				return
 			}
 			glog.Errorln(d)
-			r.JSON(http.StatusInternalServerError, d)
+			r.JSON(http.StatusInternalServerError, d.Error())
 		case nil:
 			r.JSON(http.StatusOK, "")
 		case bool:
@@ -153,7 +163,7 @@ func Return(r render.Render, data ...interface{}) {
 				return
 			}
 			glog.Errorln(d)
-			r.JSON(http.StatusInternalServerError, d)
+			r.JSON(http.StatusInternalServerError, d.Error())
 		case nil:
 			r.JSON(http.StatusOK, data[1])
 		case bool:

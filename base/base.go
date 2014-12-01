@@ -73,7 +73,7 @@ func (c creator) HasPos() bool {
 	return c.hasPos
 }
 
-type nameOnlyField struct {
+type NameOnlyField struct {
 	Name string
 }
 
@@ -90,14 +90,14 @@ func Register(m Model) {
 	f["Name"] = mname
 
 	fieldsCount := mtype.NumField()
-	fields := make([]nameOnlyField, fieldsCount)
+	fields := make([]NameOnlyField, fieldsCount)
 	for i := 0; i < fieldsCount; i++ {
 		structField := mtype.Field(i)
 		if tag := structField.Tag; tag.Get("json") != "-" || tag.Get("sql") != "-" {
 			if structField.Name == "Pos" {
 				c.hasPos = true
 			}
-			fields[i] = nameOnlyField{structField.Name}
+			fields[i] = NameOnlyField{structField.Name}
 		}
 	}
 	if fieldsCount > 0 {
