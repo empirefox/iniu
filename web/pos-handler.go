@@ -8,6 +8,7 @@ import (
 	"github.com/martini-contrib/render"
 
 	. "github.com/empirefox/iniu/base"
+	. "github.com/empirefox/iniu/gorm/db"
 )
 
 type SaveUpData struct {
@@ -55,7 +56,7 @@ type RearrData struct {
 	Top    int64 `json:"tid"`
 }
 
-// require base.ParseSearch ,bind RearrData
+// PUT require base.ParseSearch ,bind RearrData
 func Rearrange(t Table, data RearrData, r render.Render, searchFn func(db *gorm.DB) *gorm.DB) {
 	_, mods, err := RearrAndReurnMods(t.(string), data.Base, data.Bottom, data.Top, searchFn)
 	ReturnAnyway(r, err, mods)
@@ -93,6 +94,7 @@ type Direction struct {
 }
 
 // required IpPos Direction
+// return the origin other model to take the Pos info to client
 func PosUpSingle(t Table, data IdPos, dir Direction, r render.Render, searchFn func(db *gorm.DB) *gorm.DB) {
 	ips, err := IpBeforeOrAfterAnd(t.(string), !dir.Reverse, data.Pos, searchFn)
 	if err != nil {
@@ -102,12 +104,32 @@ func PosUpSingle(t Table, data IdPos, dir Direction, r render.Render, searchFn f
 
 	if len(ips) == 1 {
 		if ips[0].Id == data.Id {
-			Return(r)
+			Return(r, errors.New("already on top or bottom"))
 			return
 		}
 		Return(r, errors.New("wrong request pos, need refresh"))
 		return
 	}
 
-	Return(r, ExchangeIp(t.(string), ips...))
+	var otherId int64 = -1
+	for _, ip := range ips {
+		if ip.Id != data.Id {
+			otherId = ip.Id
+			break
+		}
+	}
+	if otherId == -1 {
+		Return(r, errors.New("otherId should be found"))
+		return
+	}
+
+	other := New(t)
+	err = DB.Table(t.(string)).Where("id=?", otherId).First(other).Error
+	if err != nil {
+		Return(r, err)
+		return
+	}
+
+	err = ExchangeIp(t.(string), ips...)
+	Return(r, err, other)
 }

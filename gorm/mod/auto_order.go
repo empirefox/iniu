@@ -4,6 +4,8 @@ import (
 	"reflect"
 
 	"github.com/jinzhu/gorm"
+
+	. "github.com/empirefox/iniu/base"
 )
 
 var (
@@ -60,6 +62,9 @@ func OrderCallback(scope *gorm.Scope) {
 		return
 	case "auto":
 		for _, column := range descColumns {
+			if column == "pos" && !HasPos(scope.TableName()) {
+				continue
+			}
 			if scope.HasColumn(column) {
 				s.Orders = desc(column)
 				orderMap[key] = s.Orders
