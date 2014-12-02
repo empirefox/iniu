@@ -33,7 +33,7 @@ var Handlers = ModelHandlers{
 	// Put /google/migrate
 	AutoMigrate: AutoMigrate,
 
-	Rearr: Rearr,
+	Rearrange: Rearrange,
 
 	// Put /google/binding/remove
 	Remove: Remove,
@@ -80,7 +80,7 @@ type ModelHandlers struct {
 	// Put /google/migrate
 	AutoMigrate martini.Handler
 
-	Rearr martini.Handler
+	Rearrange martini.Handler
 
 	// Put /google/binding/remove
 	Remove martini.Handler
@@ -104,38 +104,38 @@ type ModelHandlers struct {
 	PosBottom martini.Handler
 }
 
-func Link(m martini.Router, model Model, h ModelHandlers) {
-	Register(model)
+func Link(mr martini.Router, m interface{}, h ModelHandlers) {
+	Register(m)
 
-	t := Tablename(model)
-	f := Formname(model)
-	glog.Infoln("加载web form ", f)
-	m.Group("/"+f, func(r martini.Router) {
+	t := Tablename(m)
+	f := Formname(m)
+	glog.Infoln("link web form:", f)
+	mr.Group("/"+f, func(r martini.Router) {
 
-		r.Get("/mf", CheckWeb("ModelForm"), h.ModelForm)
-		r.Get("/df", CheckWeb("DbForm"), h.DbForm)
+		r.Get("/mf", CheckWeb("Form"), h.ModelForm)
+		r.Get("/df", CheckWeb("Form"), h.DbForm)
 		r.Get("/form", CheckWeb("Form"), h.ClientForm)
-		r.Get(`/1`, CheckWeb("One"), h.One)
-		r.Get("/names", CheckWeb("Names"), h.Names)
-		r.Get(`/page`, CheckWeb("Page"), h.Page)
-		r.Post("/save", CheckWeb("Update"), binding.Bind(model, (*Model)(nil)), h.Update)
+		r.Get(`/1`, CheckWeb("One"), binding.Form(IdData{}), h.One)
+		r.Get("/names", CheckWeb("Names"), ParseSearch, binding.Form(Pager{}), h.Names)
+		r.Get(`/page`, CheckWeb("Page"), ParseSearch, binding.Form(Pager{}), h.Page)
+		r.Post("/save", CheckWeb("Update"), binding.Bind(m, (*Model)(nil)), h.Update)
 		r.Post("/saveall", CheckWeb("Update"), binding.Bind(IndirectSlice(t), (*Models)(nil)), h.UpdateAll)
 		r.Put("/remove", CheckWeb("Remove"), binding.Bind(IdsData{}), binding.ErrorHandler, h.Remove)
 		r.Delete("/recovery", CheckWeb("Recovery"), h.Recovery)
 		r.Put("/migrate", CheckWeb("AutoMigrate"), h.AutoMigrate)
 		if HasPos(t) {
-			r.Post("/saveup", CheckWeb("Update"), binding.Form(SaveUpData{}), binding.Bind(model, (*Model)(nil)), h.SaveUp)
-			r.Put("/rearrange", CheckWeb("Update"), h.Rearr)
+			r.Post("/saveup", CheckWeb("Update"), binding.Form(SaveUpData{}), binding.Bind(m, (*Model)(nil)), h.SaveUp)
+			r.Put("/rearrange", CheckWeb("Update"), ParseSearch, binding.Bind(RearrData{}), h.Rearrange)
 			r.Post("/modips", CheckWeb("Update"), binding.Bind([]IdPos{}), h.ModIps)
 			r.Post("/xpos", CheckWeb("Update"), binding.Bind(Posx{}), h.Xpos)
-			r.Post("/postop", CheckWeb("Update"), binding.Bind(IdPos{}), h.PosTop)
-			r.Post("/posbottom", CheckWeb("Update"), binding.Bind(IdPos{}), h.PosBottom)
-			r.Post("/singleposup", CheckWeb("Update"), binding.Bind(IdPos{}), binding.Bind(Direction{}), h.PosUpSingle)
+			r.Post("/postop", CheckWeb("Update"), ParseSearch, binding.Bind(IdPos{}), h.PosTop)
+			r.Post("/posbottom", CheckWeb("Update"), ParseSearch, binding.Bind(IdPos{}), h.PosBottom)
+			r.Post("/singleposup", CheckWeb("Update"), ParseSearch, binding.Form(Direction{}), binding.Bind(IdPos{}), h.PosUpSingle)
 		}
 
 	}, AuthLogin, BindTable(t))
 }
 
-func LinkAll(m martini.Router, model Model) {
-	Link(m, model, Handlers)
+func LinkAll(r martini.Router, m interface{}) {
+	Link(r, m, Handlers)
 }
