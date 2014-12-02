@@ -130,7 +130,7 @@ func Link(mr martini.Router, m interface{}, h ModelHandlers) {
 			r.Post("/xpos", CheckWeb("Update"), binding.Bind(Posx{}), h.Xpos)
 			r.Post("/postop", CheckWeb("Update"), ParseSearch, binding.Bind(IdPos{}), h.PosTop)
 			r.Post("/posbottom", CheckWeb("Update"), ParseSearch, binding.Bind(IdPos{}), h.PosBottom)
-			r.Post("/singleposup", CheckWeb("Update"), ParseSearch, binding.Form(Direction{}), binding.Bind(IdPos{}), h.PosUpSingle)
+			r.Post("/posupsingle", CheckWeb("Update"), ParseSearch, binding.Form(Direction{}), binding.Bind(IdPos{}), h.PosUpSingle)
 		}
 
 	}, AuthLogin, BindTable(t))
