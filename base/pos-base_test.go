@@ -32,7 +32,7 @@ func TestToDb(t *testing.T) {
 		So(ToDb(xchgs, ips), ShouldBeNil)
 
 		result := []IdPos{}
-		DB.Table(xchgs).Find(&result)
+		db(xchgs).Find(&result)
 		So(result, ShouldResemble, ips)
 	})
 }
@@ -71,11 +71,11 @@ func TestExchange(t *testing.T) {
 			//   {1, 3, 4, 5, 8, 9, 12, 14, 16, 17, 18}
 			So(Exchange("xchgs", 1, 3), ShouldBeNil)
 			e := Xchg{}
-			DB.Table("xchgs").First(&e, 1)
+			db("xchgs").First(&e, 1)
 			So(e.Pos, ShouldEqual, 4)
 
 			e = Xchg{}
-			DB.Table("xchgs").First(&e, 3)
+			db("xchgs").First(&e, 3)
 			So(e.Pos, ShouldEqual, 1)
 		})
 	})
@@ -161,7 +161,7 @@ func TestToTop(t *testing.T) {
 			So(err, ShouldBeNil)
 			So(ip.Pos, ShouldEqual, 20)
 			e := Xchg{}
-			DB.Table(xchgs).First(&e, 5)
+			db(xchgs).First(&e, 5)
 			So(e.Pos, ShouldEqual, 20)
 		})
 	})
@@ -178,7 +178,7 @@ func TestToBottom(t *testing.T) {
 			So(err, ShouldBeNil)
 			So(ips, ShouldResemble, []IdPos{{Id: 1, Pos: 2}, {Id: 5, Pos: 1}})
 			e := Xchg{}
-			DB.Table(xchgs).Last(&e, 5)
+			db(xchgs).Last(&e, 5)
 			So(e.Pos, ShouldEqual, 1)
 		})
 	})

@@ -13,10 +13,10 @@ import (
 )
 
 func recoveryAccount() {
-	DB.DropTableIfExists(Oauth{})
-	DB.DropTableIfExists(Account{})
-	DB.CreateTable(Account{})
-	DB.CreateTable(Oauth{})
+	DB.DropTableIfExists(&Oauth{})
+	DB.DropTableIfExists(&Account{})
+	DB.CreateTable(&Account{})
+	DB.CreateTable(&Oauth{})
 }
 
 func TestAccount(t *testing.T) {

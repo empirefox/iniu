@@ -9,33 +9,21 @@ import (
 
 	"github.com/empirefox/shirolet"
 	"github.com/empirefox/spy"
-	"github.com/erikstmartin/go-testdb"
 	"github.com/go-martini/martini"
 	. "github.com/smartystreets/goconvey/convey"
 
 	. "github.com/empirefox/iniu/base"
 	. "github.com/empirefox/iniu/convey"
-	"github.com/empirefox/iniu/gorm/mock"
 	"github.com/empirefox/iniu/security"
 )
 
 func TestTableForms(t *testing.T) {
 	Convey("TableForms", t, func() {
-		//prepare
+		tableFormsMock := func() (tfs []TableForm, err error) {
+			tfs = []TableForm{{Name: "Form", Title: "Form Title"}, {Name: "Field", Title: "Field Title"}}
+			return
+		}
 
-		//db mock
-		db := mock.DB.Table("forms").Select("name,title").Order("pos desc")
-		bdb := mock.NewBackend(db)
-
-		tfs := []TableForm{}
-		columns := []string{"name", "title"}
-		result := `
-		Form,Form Title
-		Field,Field Title
-		`
-		bdb.StubQuery(&tfs, testdb.RowsFromCSVString(columns, result))
-
-		//spy security
 		webFormMock := func(t Table, method string) shirolet.Permit {
 			switch t.(string) + "." + method + "()" {
 			case "Form.Form()":
@@ -54,7 +42,7 @@ func TestTableForms(t *testing.T) {
 		}
 		res := []TableForm{{Name: "Field", Title: "Field Title"}}
 
-		Convey("should get authorized tables", spy.On(&security.WebPerm, webFormMock).Spy(func() {
+		Convey("should get authorized tables", spy.On(&tableForms, tableFormsMock).On(&security.WebPerm, webFormMock).Spy(func() {
 			So(req, ShouldResponseOk, res)
 		}))
 	})

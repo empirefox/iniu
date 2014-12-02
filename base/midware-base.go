@@ -8,17 +8,14 @@ import (
 	"github.com/empirefox/iniu/comm"
 	"github.com/go-martini/martini"
 	"github.com/jinzhu/gorm"
-	"github.com/tobyhede/go-underscore"
 )
 
 var (
-	IgnoresInSearch = strings.Split("size|page", "|")
+	IgnoresInSearch = comm.NewStrSet(strings.Split("size|page", "|")...)
 )
 
-func isIgnored(value string) bool {
-	return un.AnyString(func(ignored string) bool {
-		return ignored == value
-	}, IgnoresInSearch)
+func IsIgnored(value string) bool {
+	return IgnoresInSearch.Contains(value)
 }
 
 func ParseSearch(c martini.Context, req *http.Request) {

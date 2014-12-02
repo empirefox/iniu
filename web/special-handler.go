@@ -14,10 +14,14 @@ type TableForm struct {
 	Title string `json:",omitempty"`
 }
 
+var tableForms = func() (tfs []TableForm, err error) {
+	err = DB.Table("forms").Select("name,title").Order("pos desc").Find(&tfs).Error
+	return
+}
+
 var TableForms = func(r render.Render, a *security.Account) {
 
-	tfs := []TableForm{}
-	err := DB.Table("forms").Select("name,title").Order("pos desc").Find(&tfs).Error
+	tfs, err := tableForms()
 	if err != nil {
 		panic(err)
 	}

@@ -10,7 +10,6 @@ import (
 	"github.com/golang/glog"
 	"github.com/jinzhu/gorm"
 	"github.com/martini-contrib/render"
-	"github.com/tobyhede/go-underscore"
 
 	. "github.com/empirefox/iniu/base"
 	"github.com/empirefox/iniu/comm"
@@ -67,15 +66,14 @@ func CpScopeFn(data Model, cp string) (func(*gorm.DB) *gorm.DB, error) {
 	query := map[string]interface{}{}
 	scope := gorm.Scope{Value: data}
 
-	var proccess = func(p string) bool {
+	done := comm.StrSlice(strings.Split(cp, "|")).All(func(p string) bool {
 		field, found := scope.FieldByName(p)
 		if found {
 			query[field.DBName] = field.Field.Interface()
 		}
 		return found
-	}
+	})
 
-	done := un.EveryString(proccess, strings.Split(cp, "|"))
 	if !done || len(query) == 0 {
 		return nil, errors.New("cp not found")
 	}

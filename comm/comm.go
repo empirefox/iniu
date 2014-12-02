@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/deckarep/golang-set"
 )
 
 func Atoi64(s string) int64 {
@@ -18,14 +17,6 @@ func Atoi64(s string) int64 {
 
 func I64toA(i int64) string {
 	return strconv.FormatInt(i, 10)
-}
-
-func NewSet(s []string) mapset.Set {
-	a := mapset.NewSet()
-	for _, v := range s {
-		a.Add(v)
-	}
-	return a
 }
 
 func UnescapeParam(input map[string]string) map[string]interface{} {

@@ -11,7 +11,6 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	. "github.com/empirefox/iniu/gorm/db"
-	. "github.com/empirefox/iniu/gorm/mod"
 )
 
 type Xchg struct {
@@ -20,7 +19,6 @@ type Xchg struct {
 }
 
 func init() {
-	AutoOrder()
 	Register(Xchg{})
 }
 

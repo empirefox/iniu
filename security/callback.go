@@ -6,7 +6,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/golang/glog"
 	"github.com/jinzhu/gorm"
 
 	. "github.com/empirefox/iniu/gorm/db"
@@ -79,6 +78,9 @@ func (c *Context) AfterTransaction(scope *gorm.Scope) error {
 			} else {
 				for _, field := range scope.Fields() {
 					if !field.IsPrimaryKey && field.IsNormal && !field.IsIgnored {
+						if field.DefaultValue != nil && field.IsBlank {
+							continue
+						}
 						skip++
 					}
 				}
@@ -111,7 +113,6 @@ func (c *Context) AfterTransaction(scope *gorm.Scope) error {
 				var formId int64
 				err = s.DB().QueryRow(s.Sql, newVars...).Scan(&formId)
 				if err != nil {
-					glog.Infoln(err)
 					return RefreshFormFailed
 				}
 
@@ -119,7 +120,6 @@ func (c *Context) AfterTransaction(scope *gorm.Scope) error {
 			}
 
 			if err != nil {
-				glog.Infoln(err)
 				return RefreshFormFailed
 			}
 			InitForm(form)

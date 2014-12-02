@@ -13,10 +13,10 @@ import (
 )
 
 func recoveryForm() {
-	DB.DropTableIfExists(Field{})
-	DB.DropTableIfExists(Form{})
-	DB.CreateTable(Form{})
-	DB.CreateTable(Field{})
+	DB.DropTableIfExists(&Field{})
+	DB.DropTableIfExists(&Form{})
+	DB.CreateTable(&Form{})
+	DB.CreateTable(&Field{})
 }
 
 func TestFormAfterDelete(t *testing.T) {

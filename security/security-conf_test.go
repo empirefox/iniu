@@ -12,7 +12,7 @@ import (
 func init() {
 	flag.Set("stderrthreshold", "INFO")
 	flag.Parse()
-	DB.LogMode(true)
+	DB.LogMode(false)
 }
 
 var superDB = DB.Set("context:account", &Account{

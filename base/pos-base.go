@@ -17,13 +17,17 @@ type IdPos struct {
 	Pos int64
 }
 
+func db(t string) *gorm.DB {
+	return DB.Table(t).Order("pos desc")
+}
+
 func IpById(t string, id int64) (ip IdPos, err error) {
-	err = DB.Table(t).Where("id=?", id).First(&ip).Error
+	err = db(t).Where("id=?", id).First(&ip).Error
 	return
 }
 
 func IpByPos(t string, pos int64, fns ...func(*gorm.DB) *gorm.DB) (ip IdPos, err error) {
-	err = DB.Table(t).Scopes(fns...).Where("pos=?", pos).First(&ip).Error
+	err = db(t).Scopes(fns...).Where("pos=?", pos).First(&ip).Error
 	return
 }
 
@@ -38,7 +42,7 @@ func IpBeforeOrAfterAnd(t string, isBefore bool, pos int64, fns ...func(*gorm.DB
 }
 
 func IpDb(t string, fns []func(*gorm.DB) *gorm.DB) *gorm.DB {
-	return DB.Table(t).Scopes(fns...).Select("id,pos")
+	return db(t).Scopes(fns...).Select("id,pos")
 }
 
 func OrderIpDb(t string, isUp bool, fns []func(*gorm.DB) *gorm.DB) *gorm.DB {
@@ -117,7 +121,7 @@ func Exchange(t string, id1, id2 int64) error {
 		return errors.New("wrong ids")
 	}
 	ips := []IdPos{}
-	err := DB.Table(t).Where("id in (?)", []int64{id1, id2}).Find(&ips).Error
+	err := db(t).Where("id in (?)", []int64{id1, id2}).Find(&ips).Error
 	if err != nil || len(ips) != 2 {
 		return err
 	}
@@ -146,15 +150,15 @@ func NewPosUpBetween(t string, idBase, idBottom, idTop int64, fns ...func(*gorm.
 		return maxIp.Pos + step, nil, nil
 	}
 
-	err = DB.Table(t).Where("id=?", idBase).First(&baseIp).Error
+	err = db(t).Where("id=?", idBase).First(&baseIp).Error
 	if err != nil {
 		return -1, nil, err
 	}
-	err = DB.Table(t).Where("id=?", idBottom).First(&bottomIp).Error
+	err = db(t).Where("id=?", idBottom).First(&bottomIp).Error
 	if err != nil {
 		return -1, nil, err
 	}
-	err = DB.Table(t).Where("id=?", idTop).First(&topIp).Error
+	err = db(t).Where("id=?", idTop).First(&topIp).Error
 	if err != nil {
 		return -1, nil, err
 	}

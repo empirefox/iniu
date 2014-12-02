@@ -1,10 +1,12 @@
 package mod
 
 import (
+	"flag"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
 
+	. "github.com/empirefox/iniu/base"
 	. "github.com/empirefox/iniu/gorm/db"
 )
 
@@ -13,6 +15,16 @@ var (
 	nonAutoOrderd = "non_auto_orderds"
 	autod         = "autods"
 )
+
+func init() {
+	flag.Set("stderrthreshold", "INFO")
+	flag.Parse()
+	DB.LogMode(false)
+
+	Register(Autod{})
+	Register(AutoOrderd{})
+	Register(NonAutoOrderd{})
+}
 
 type Autod struct {
 	Id  int `order:"auto"`
@@ -92,7 +104,7 @@ func TestAutoOrderCallback(t *testing.T) {
 
 		Convey("No Orderd tag", func() {
 			AutoOrder()
-			//            1  2  3  4
+			//               1  2  3  4
 			newNonAutoOrderd(8, 6, 7, 9)
 			var aos []NonAutoOrderd
 			err := DB.Table(nonAutoOrderd).Find(&aos).Error
@@ -103,7 +115,7 @@ func TestAutoOrderCallback(t *testing.T) {
 
 		Convey("Orderd tag = auto", func() {
 			AutoOrder()
-			//            1  2  3  4
+			//       1  2  3  4
 			newAutod(8, 6, 7, 9)
 			var aos []Autod
 			err := DB.Table(autod).Find(&aos).Error

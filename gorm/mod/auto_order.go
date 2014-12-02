@@ -12,7 +12,7 @@ var (
 	descColumns = []string{"pos", "updated_at", "created_at"}
 	ascColumns  = []string{"title", "name", "id"}
 
-	orderMap = map[reflect.Type][]string{}
+	orderMap = map[string][]string{}
 )
 
 func AutoOrder() {
@@ -34,7 +34,7 @@ func OrderCallback(scope *gorm.Scope) {
 	}
 
 	var indirectValue = scope.IndirectValue()
-	var key = indirectValue.Type()
+	var key = scope.TableName()
 
 	if orders, ok := orderMap[key]; ok {
 		s.Orders = orders
