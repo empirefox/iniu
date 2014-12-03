@@ -108,7 +108,7 @@ func WritePager(t Table, pager Pager, w http.ResponseWriter, searchFn func(db *g
 	w.Header().Set("X-Total-Items", strconv.FormatInt(total, 10))
 	w.Header().Set("X-Page", strconv.FormatInt(pager.Num, 10))
 	w.Header().Set("X-Page-Size", strconv.FormatInt(pager.Size, 10))
-	w.Header().Set("Access-Control-Expose-Headers", "X-Total-Items, X-Page")
+	w.Header().Set("Access-Control-Expose-Headers", "X-Total-Items, X-Page, X-Page-Size")
 	return nil
 }
 
