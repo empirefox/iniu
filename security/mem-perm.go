@@ -67,7 +67,7 @@ func initForm(form Form) {
 	}
 
 	fields := []Field{}
-	err := DB.Model(form).Related(&fields).Error
+	err := DB.Set("context:account", "*").Model(form).Related(&fields).Error
 	if err != nil && err != gorm.RecordNotFound {
 		panic(err)
 	}

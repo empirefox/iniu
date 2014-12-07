@@ -44,6 +44,10 @@ func init() {
 	Register(Child{})
 }
 
+func mockSudoGorm(c martini.Context, t Table) {
+	c.Map(DB.Set("context:account", "*").Table(t.(string)))
+}
+
 func newWebs(ns ...string) {
 	DB.DropTableIfExists(Web{})
 	DB.CreateTable(Web{})
@@ -137,22 +141,22 @@ func TestWritePager(t *testing.T) {
 	Convey("WritePager", t, func() {
 		Convey("should not found items", func() {
 			newWebs()
-			err := WritePager(webs, Pager{Num: 10, Size: 20}, w, searchFn)
+			err := WritePager(DB.Table(webs), Pager{Num: 10, Size: 20}, w, searchFn)
 			So(err, ShouldBeNil)
 			So(w.Header().Get("X-Total-Items"), ShouldEqual, "0")
 			So(w.Header().Get("X-Page"), ShouldEqual, "1")
 			So(w.Header().Get("X-Page-Size"), ShouldEqual, "20")
-			So(w.Header().Get("Access-Control-Expose-Headers"), ShouldEqual, "X-Total-Items, X-Page")
+			So(w.Header().Get("Access-Control-Expose-Headers"), ShouldEqual, "X-Total-Items, X-Page, X-Page-Size")
 		})
 
 		Convey("should set pager to header", func() {
 			newWebs("a", "b", "c")
-			err := WritePager(webs, Pager{Num: 1, Size: 20}, w, searchFn)
+			err := WritePager(DB.Table(webs), Pager{Num: 1, Size: 20}, w, searchFn)
 			So(err, ShouldBeNil)
 			So(w.Header().Get("X-Total-Items"), ShouldEqual, "3")
 			So(w.Header().Get("X-Page"), ShouldEqual, "1")
 			So(w.Header().Get("X-Page-Size"), ShouldEqual, "20")
-			So(w.Header().Get("Access-Control-Expose-Headers"), ShouldEqual, "X-Total-Items, X-Page")
+			So(w.Header().Get("Access-Control-Expose-Headers"), ShouldEqual, "X-Total-Items, X-Page, X-Page-Size")
 		})
 	})
 }

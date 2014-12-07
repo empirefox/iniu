@@ -48,7 +48,7 @@ func TestSaveUp(t *testing.T) {
 		Convey("should save new model up", func() {
 
 			req := func(m martini.Router) (*http.Request, error) {
-				m.Post("/saveup", binding.Form(SaveUpData{}), binding.Bind(Xchg{}, (*Model)(nil)), BindTable(xchgs), SaveUp)
+				m.Post("/saveup", binding.Form(SaveUpData{}), binding.Bind(Xchg{}, (*Model)(nil)), BindTable(xchgs), mockSudoGorm, SaveUp)
 				return http.NewRequest("POST", "/saveup?b=1&t=5", strings.NewReader(`{"Pos":3}`))
 			}
 			res := J{IpKey: []IdPos{{1, 1}, {2, 9}, {3, 25}, {4, 33}, {5, 41}}, "Newer": Xchg{9, 17}}
@@ -82,7 +82,7 @@ func TestPosUpSingle(t *testing.T) {
 		Convey("should move up usually", func() {
 
 			req := func(m martini.Router) (*http.Request, error) {
-				m.Post("/PosUpSingle", ParseSearch, binding.Form(Direction{}), binding.Bind(IdPos{}), BindTable(xchgs), PosUpSingle)
+				m.Post("/PosUpSingle", ParseSearch, binding.Form(Direction{}), binding.Bind(IdPos{}), BindTable(xchgs), mockSudoGorm, PosUpSingle)
 				return http.NewRequest("POST", "/PosUpSingle", strings.NewReader(`{"Id":2,"Pos":3}`))
 			}
 			res := Xchg{3, 4}
@@ -93,7 +93,7 @@ func TestPosUpSingle(t *testing.T) {
 		Convey("should move down usually", func() {
 
 			req := func(m martini.Router) (*http.Request, error) {
-				m.Post("/PosUpSingle", ParseSearch, binding.Form(Direction{}), binding.Bind(IdPos{}), BindTable(xchgs), PosUpSingle)
+				m.Post("/PosUpSingle", ParseSearch, binding.Form(Direction{}), binding.Bind(IdPos{}), BindTable(xchgs), mockSudoGorm, PosUpSingle)
 				return http.NewRequest("POST", "/PosUpSingle?reverse=true", strings.NewReader(`{"Id":2,"Pos":3}`))
 			}
 			res := Xchg{1, 2}

@@ -5,7 +5,6 @@ import (
 
 	"github.com/martini-contrib/render"
 
-	. "github.com/empirefox/iniu/gorm/db"
 	"github.com/empirefox/iniu/security"
 )
 
@@ -15,7 +14,7 @@ type TableForm struct {
 }
 
 var tableForms = func() (tfs []TableForm, err error) {
-	err = DB.Table("forms").Select("name,title").Order("pos desc").Find(&tfs).Error
+	err = SudoDb("forms").Select("name,title").Order("pos desc").Find(&tfs).Error
 	return
 }
 

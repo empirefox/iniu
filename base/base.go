@@ -5,8 +5,6 @@ import (
 	"reflect"
 
 	"github.com/jinzhu/gorm"
-
-	. "github.com/empirefox/iniu/gorm/db"
 )
 
 type J map[string]interface{}
@@ -177,11 +175,11 @@ func ToFormname(t Table) string {
 	return ""
 }
 
-func saveModel(iPtr *Model) error {
-	return saveModelWith(iPtr, nil)
+func saveModel(db *gorm.DB, iPtr *Model) error {
+	return saveModelWith(db, iPtr, nil)
 }
 
-func saveModelWith(iPtr *Model, param map[string]interface{}) error {
+func saveModelWith(db *gorm.DB, iPtr *Model, param map[string]interface{}) error {
 	mPtr := reflect.New(reflect.TypeOf(*iPtr))
 	m := mPtr.Elem()
 	m.Set(reflect.ValueOf(*iPtr))
@@ -192,14 +190,14 @@ func saveModelWith(iPtr *Model, param map[string]interface{}) error {
 		m.FieldByName(k).Set(reflect.ValueOf(v))
 	}
 
-	err := DB.Table(t).Save(mPtr.Interface()).Error
+	err := db.Save(mPtr.Interface()).Error
 	if err != nil {
 		return err
 	}
 
 	id := m.FieldByName("Id").Int()
 	n := New(t)
-	err = DB.Table(t).Where("id=?", id).First(n).Error
+	err = db.Where("id=?", id).First(n).Error
 	if err != nil {
 		return err
 	}

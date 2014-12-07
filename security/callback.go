@@ -28,6 +28,7 @@ func AfterTransaction(scope *gorm.Scope) {
 type Context struct {
 }
 
+// add string perm to temp create an Account, specially useful in test case
 func (c *Context) BeforeSave(scope *gorm.Scope) {
 	accountI, hasAccount := scope.Get("context:account")
 	if !hasAccount {
@@ -35,8 +36,17 @@ func (c *Context) BeforeSave(scope *gorm.Scope) {
 		return
 	}
 
-	account, isAccount := accountI.(*Account)
-	if !isAccount {
+	var account *Account
+	switch accountI.(type) {
+	case *Account:
+		account = accountI.(*Account)
+	case string:
+		account = &Account{
+			Name:      "string_perm",
+			Enabled:   true,
+			HoldsPerm: accountI.(string),
+		}
+	default:
 		scope.Err(AccountNotFound)
 		return
 	}

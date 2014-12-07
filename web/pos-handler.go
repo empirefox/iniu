@@ -8,7 +8,6 @@ import (
 	"github.com/martini-contrib/render"
 
 	. "github.com/empirefox/iniu/base"
-	. "github.com/empirefox/iniu/gorm/db"
 )
 
 type SaveUpData struct {
@@ -17,7 +16,7 @@ type SaveUpData struct {
 	Cp       string `form:"cp"`
 }
 
-func SaveUp(t Table, data Model, up SaveUpData, r render.Render) {
+func SaveUp(t Table, db *gorm.DB, data Model, up SaveUpData, r render.Render) {
 	if !HasPos(t) {
 		Return(r, errors.New("have no pos here"))
 		return
@@ -47,7 +46,7 @@ func SaveUp(t Table, data Model, up SaveUpData, r render.Render) {
 		return
 	}
 
-	ReturnAnyway(r, SaveModelWith(&data, map[string]interface{}{"Pos": newPos}), J{IpKey: mods, "Newer": data})
+	ReturnAnyway(r, SaveModelWith(db, &data, map[string]interface{}{"Pos": newPos}), J{IpKey: mods, "Newer": data})
 }
 
 type RearrData struct {
@@ -95,7 +94,7 @@ type Direction struct {
 
 // required IpPos Direction
 // return the origin other model to take the Pos info to client
-func PosUpSingle(t Table, data IdPos, dir Direction, r render.Render, searchFn func(db *gorm.DB) *gorm.DB) {
+func PosUpSingle(t Table, db *gorm.DB, data IdPos, dir Direction, r render.Render, searchFn func(db *gorm.DB) *gorm.DB) {
 	ips, err := IpBeforeOrAfterAnd(t.(string), !dir.Reverse, data.Pos, searchFn)
 	if err != nil {
 		Return(r, err)
@@ -124,7 +123,7 @@ func PosUpSingle(t Table, data IdPos, dir Direction, r render.Render, searchFn f
 	}
 
 	other := New(t)
-	err = DB.Table(t.(string)).Where("id=?", otherId).First(other).Error
+	err = db.Where("id=?", otherId).First(other).Error
 	if err != nil {
 		Return(r, err)
 		return

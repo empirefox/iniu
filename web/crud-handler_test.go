@@ -59,7 +59,7 @@ func TestOne(t *testing.T) {
 	Convey("One", t, func() {
 		newWebs("n1")
 		req := func(m martini.Router) (*http.Request, error) {
-			m.Get("/1", binding.Form(IdData{}), BindTable(webs), One)
+			m.Get("/1", binding.Form(IdData{}), BindTable(webs), mockSudoGorm, One)
 			return http.NewRequest("GET", "/1?Id=1", nil)
 		}
 		res := Web{Id: 1, Name: "n1"}
@@ -74,7 +74,7 @@ func TestNames(t *testing.T) {
 		Convey("with parent", func() {
 			newChilds(1, "c1")
 			req := func(m martini.Router) (*http.Request, error) {
-				m.Get("/page", ParseSearch, binding.Form(Pager{}), BindTable(child), Names)
+				m.Get("/page", ParseSearch, binding.Form(Pager{}), BindTable(child), mockSudoGorm, Names)
 				return http.NewRequest("GET", `/page?search={"web_id":1}&size=2&num=1`, nil)
 			}
 			res := []IdPosName{{Id: 1, Name: "c1"}}
@@ -84,7 +84,7 @@ func TestNames(t *testing.T) {
 
 		Convey("without parent", func() {
 			req := func(m martini.Router) (*http.Request, error) {
-				m.Get("/page", ParseSearch, binding.Form(Pager{}), BindTable(webs), Names)
+				m.Get("/page", ParseSearch, binding.Form(Pager{}), BindTable(webs), mockSudoGorm, Names)
 				return http.NewRequest("GET", "/page?size=2&num=1", nil)
 			}
 			res := []IdPosName{{Id: 1, Name: "n1"}}
@@ -100,7 +100,7 @@ func TestPage(t *testing.T) {
 		Convey("with parent", func() {
 			newChilds(1, "c1")
 			req := func(m martini.Router) (*http.Request, error) {
-				m.Get("/page", ParseSearch, binding.Form(Pager{}), BindTable(child), Page)
+				m.Get("/page", ParseSearch, binding.Form(Pager{}), BindTable(child), mockSudoGorm, Page)
 				return http.NewRequest("GET", `/page?search={"web_id":1}&size=2&num=1`, nil)
 			}
 			res := []Child{{Id: 1, WebId: 1, Name: "c1"}}
@@ -110,7 +110,7 @@ func TestPage(t *testing.T) {
 
 		Convey("without parent", func() {
 			req := func(m martini.Router) (*http.Request, error) {
-				m.Get("/page", ParseSearch, binding.Form(Pager{}), BindTable(webs), Page)
+				m.Get("/page", ParseSearch, binding.Form(Pager{}), BindTable(webs), mockSudoGorm, Page)
 				return http.NewRequest("GET", "/page?size=2&num=1", nil)
 			}
 			res := []Child{{Id: 1, Name: "n1"}}
@@ -126,7 +126,7 @@ func TestRemove(t *testing.T) {
 		So(DB.Where("Name=?", "n1").First(&Web{}).Error, ShouldBeNil)
 
 		req := func(m martini.Router) (*http.Request, error) {
-			m.Put("/remove", BindTable(webs), binding.Bind(IdsData{}), Remove)
+			m.Put("/remove", BindTable(webs), mockSudoGorm, binding.Bind(IdsData{}), Remove)
 			return http.NewRequest("PUT", "/remove", strings.NewReader(`{"Ids":[1]}`))
 		}
 		res := ""
@@ -144,7 +144,7 @@ func TestUpdate(t *testing.T) {
 		Convey("should create new model", func() {
 
 			req := func(m martini.Router) (*http.Request, error) {
-				m.Post("/save", binding.Bind(Web{}, (*Model)(nil)), BindTable(webs), Update)
+				m.Post("/save", binding.Bind(Web{}, (*Model)(nil)), BindTable(webs), mockSudoGorm, Update)
 				return http.NewRequest("POST", "/save", strings.NewReader(`{"Name":"n2"}`))
 			}
 			res := Web{Id: 2, Name: "n2"}
@@ -155,7 +155,7 @@ func TestUpdate(t *testing.T) {
 		})
 		Convey("should update the exist model", func() {
 			req := func(m martini.Router) (*http.Request, error) {
-				m.Post("/save", binding.Bind(Web{}, (*Model)(nil)), BindTable(webs), Update)
+				m.Post("/save", binding.Bind(Web{}, (*Model)(nil)), BindTable(webs), mockSudoGorm, Update)
 				return http.NewRequest("POST", "/save", strings.NewReader(`{"Id":1,"Name":"n2"}`))
 			}
 			res := Web{Id: 1, Name: "n2"}
@@ -175,7 +175,7 @@ func TestUpdateAll(t *testing.T) {
 		Convey("should update all models", func() {
 
 			req := func(m martini.Router) (*http.Request, error) {
-				m.Post("/saveall", binding.Bind([]Web{}, (*Models)(nil)), BindTable(webs), UpdateAll)
+				m.Post("/saveall", binding.Bind([]Web{}, (*Models)(nil)), BindTable(webs), mockSudoGorm, UpdateAll)
 				return http.NewRequest("POST", "/saveall", strings.NewReader(`[{"Id":1,"Name":"n2"},{"Name":"n3"}]`))
 			}
 			res := []Web{{Id: 1, Name: "n2"}, {Id: 2, Name: "n3"}}

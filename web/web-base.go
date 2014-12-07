@@ -14,6 +14,7 @@ import (
 	. "github.com/empirefox/iniu/base"
 	"github.com/empirefox/iniu/comm"
 	. "github.com/empirefox/iniu/gorm/db"
+	"github.com/empirefox/iniu/security"
 )
 
 type Pager struct {
@@ -53,6 +54,14 @@ type IdData struct {
 	Id int64 `form:"Id" binding:"required" order:"auto"`
 }
 
+func SudoDb(t Table) *gorm.DB {
+	return DB.Set("context:account", "*").Table(t.(string))
+}
+
+func BindGorm(c martini.Context, a *security.Account, t Table) {
+	c.Map(DB.Set("context:account", a).Table(t.(string)))
+}
+
 func CpScopeFn(data Model, cp string) (func(*gorm.DB) *gorm.DB, error) {
 	var null = func(db *gorm.DB) *gorm.DB {
 		return db
@@ -90,13 +99,13 @@ func BindTable(t string) martini.Handler {
 }
 
 // can be 0
-func Total(t Table, fns ...func(db *gorm.DB) *gorm.DB) (total int64, err error) {
-	err = DB.Table(t.(string)).Scopes(fns...).Count(&total).Error
+func Total(db *gorm.DB, fns ...func(db *gorm.DB) *gorm.DB) (total int64, err error) {
+	err = db.Scopes(fns...).Count(&total).Error
 	return
 }
 
-func WritePager(t Table, pager Pager, w http.ResponseWriter, searchFn func(db *gorm.DB) *gorm.DB) error {
-	total, err := Total(t, searchFn)
+func WritePager(db *gorm.DB, pager Pager, w http.ResponseWriter, searchFn func(db *gorm.DB) *gorm.DB) error {
+	total, err := Total(db, searchFn)
 	if err != nil {
 		return err
 	}

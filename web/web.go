@@ -133,7 +133,7 @@ func Link(mr martini.Router, m interface{}, h ModelHandlers) {
 			r.Post("/posupsingle", CheckWeb("Update"), ParseSearch, binding.Form(Direction{}), binding.Bind(IdPos{}), h.PosUpSingle)
 		}
 
-	}, AuthLogin, BindTable(t))
+	}, AuthLogin, BindTable(t), BindGorm)
 }
 
 func LinkAll(r martini.Router, m interface{}) {

@@ -46,56 +46,56 @@ func ClientForm(t Table, r render.Render) {
 
 // only can get by id?
 // need form IdPosName
-func One(t Table, data IdData, r render.Render) {
+func One(t Table, db *gorm.DB, data IdData, r render.Render) {
 	m := New(t)
-	err := DB.Table(t.(string)).Where("id=?", data.Id).First(m).Error
+	err := db.Where("id=?", data.Id).First(m).Error
 	Return(r, err, m)
 }
 
 // Get /google/names?search={parent_id:10}&size=10&num=2
 // need ParseSearch midware and Pager
-var Names = func(t Table, r render.Render, pager Pager, w http.ResponseWriter, searchFn func(db *gorm.DB) *gorm.DB) {
+var Names = func(t Table, db *gorm.DB, r render.Render, pager Pager, w http.ResponseWriter, searchFn func(db *gorm.DB) *gorm.DB) {
 	ms := []IdPosName{}
 	selects := "id,pos,name"
 	if !HasPos(t) {
 		selects = "id,name"
 	}
-	if err := DB.Table(t.(string)).Scopes(searchFn).Select(selects).Offset(pager.Offset()).Limit(pager.Limit()).Find(&ms).Error; err != nil {
+	if err := db.Scopes(searchFn).Select(selects).Offset(pager.Offset()).Limit(pager.Limit()).Find(&ms).Error; err != nil {
 		Return(r, err)
 		return
 	}
-	Return(r, WritePager(t, pager, w, searchFn), ms)
+	Return(r, WritePager(db, pager, w, searchFn), ms)
 }
 
 // Get /google/page?search={parent_id:10}&size=10&num=2
 // need ParseSearch midware and Pager
-var Page = func(t Table, r render.Render, pager Pager, w http.ResponseWriter, searchFn func(db *gorm.DB) *gorm.DB) {
+var Page = func(t Table, db *gorm.DB, r render.Render, pager Pager, w http.ResponseWriter, searchFn func(db *gorm.DB) *gorm.DB) {
 	ms := Slice(t)
-	if err := DB.Table(t.(string)).Scopes(searchFn).Offset(pager.Offset()).Limit(pager.Limit()).Find(ms).Error; err != nil {
+	if err := db.Scopes(searchFn).Offset(pager.Offset()).Limit(pager.Limit()).Find(ms).Error; err != nil {
 		Return(r, err)
 		return
 	}
-	Return(r, WritePager(t, pager, w, searchFn), ms)
+	Return(r, WritePager(db, pager, w, searchFn), ms)
 }
 
 // Put
-func Remove(t Table, data IdsData, r render.Render) {
-	err := DB.Where(data.Ids).Delete(New(t)).Error
+func Remove(db *gorm.DB, data IdsData, r render.Render) {
+	err := db.Where("id in (?)", data.Ids).Delete(IdPosName{}).Error
 	Return(r, err)
 }
 
 //will not set Pos
-func Update(t Table, data Model, r render.Render) {
-	Return(r, SaveModel(&data), data)
+func Update(db *gorm.DB, data Model, r render.Render) {
+	Return(r, SaveModel(db, &data), data)
 }
 
 //will not affect Pos
 //should be used when without Pos field or with Id and Pos already set
-func UpdateAll(t Table, ms Models, r render.Render) {
-	tx := DB.Begin()
+func UpdateAll(db *gorm.DB, ms Models, r render.Render) {
+	tx := db.Begin()
 
 	err := ForEach(ms, func(mPtr interface{}) error {
-		return tx.Table(t.(string)).Save(mPtr).Error
+		return tx.Save(mPtr).Error
 	})
 
 	if err != nil {

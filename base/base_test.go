@@ -79,33 +79,34 @@ func TestModel(t *testing.T) {
 
 		Convey("SaveModel", func() {
 			newTable(2)
+			db := DB.Set("context:account", "*").Table(xchgs)
 			param := map[string]interface{}{"Pos": int64(100)}
 			r := &Xchg{}
 			Convey("should save new model ok when no params", func() {
 				var m Model = Xchg{Pos: 5}
-				So(SaveModel(&m), ShouldBeNil)
-				DB.Table(xchgs).Where("Pos=?", 5).First(r)
+				So(SaveModel(db, &m), ShouldBeNil)
+				db.Where("Pos=?", 5).First(r)
 				So(m.(Xchg), ShouldResemble, *r)
 			})
 
 			Convey("should save exist model ok when no params", func() {
 				var m Model = Xchg{Id: 1, Pos: 5}
-				So(SaveModel(&m), ShouldBeNil)
-				DB.Table(xchgs).Where("Pos=?", 5).First(r)
+				So(SaveModel(db, &m), ShouldBeNil)
+				db.Where("Pos=?", 5).First(r)
 				So(m.(Xchg), ShouldResemble, *r)
 			})
 
 			Convey("should save new model ok with params", func() {
 				var m Model = Xchg{Pos: 5}
-				So(SaveModelWith(&m, param), ShouldBeNil)
-				DB.Table(xchgs).Where("Pos=?", 100).First(r)
+				So(SaveModelWith(db, &m, param), ShouldBeNil)
+				db.Where("Pos=?", 100).First(r)
 				So(m.(Xchg), ShouldResemble, *r)
 			})
 
 			Convey("should save exist model ok with params", func() {
 				var m Model = Xchg{Id: 1, Pos: 5}
-				So(SaveModelWith(&m, param), ShouldBeNil)
-				DB.Table(xchgs).Where("Pos=?", 100).First(r)
+				So(SaveModelWith(db, &m, param), ShouldBeNil)
+				db.Where("Pos=?", 100).First(r)
 				So(m.(Xchg), ShouldResemble, *r)
 			})
 		})
