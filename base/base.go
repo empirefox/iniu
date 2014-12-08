@@ -88,14 +88,14 @@ func Register(m Model) {
 	f["Name"] = mname
 
 	fieldsCount := mtype.NumField()
-	fields := make([]NameOnlyField, fieldsCount)
+	fields := []NameOnlyField{}
 	for i := 0; i < fieldsCount; i++ {
 		structField := mtype.Field(i)
-		if tag := structField.Tag; tag.Get("json") != "-" || tag.Get("sql") != "-" {
+		if tag := structField.Tag; !structField.Anonymous && tag.Get("sql") != "-" {
 			if structField.Name == "Pos" {
 				c.hasPos = true
 			}
-			fields[i] = NameOnlyField{structField.Name}
+			fields = append(fields, NameOnlyField{structField.Name})
 		}
 	}
 	if fieldsCount > 0 {

@@ -33,6 +33,7 @@ var (
 	ColumnPerm = columnPerm
 	InitForms  = initForms
 	InitForm   = initForm
+	IdTables   = make(map[int64]string)
 )
 
 func webPerm(t Table, method string) shirolet.Permit {
@@ -113,4 +114,7 @@ func initForm(form Form) {
 
 	// JsonForms
 	JsonForms[tarTable] = jform
+
+	// IdTables
+	IdTables[form.Id] = tarTable
 }
