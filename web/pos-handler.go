@@ -28,6 +28,18 @@ func SaveUp(t Table, db *gorm.DB, data Model, up SaveUpData, r render.Render) {
 		return
 	}
 
+	// fix client request for the first time not saved
+	var total int64
+	total, err = Total(db, wFn)
+	if err != nil {
+		Return(r, err)
+		return
+	}
+	if total == 0 {
+		ReturnAnyway(r, SaveModelWith(db, &data, map[string]interface{}{"Pos": int64(1)}), J{"Newer": data})
+		return
+	}
+
 	basePos := reflect.ValueOf(data).FieldByName("Pos").Int()
 
 	var baseIp IdPos
