@@ -123,15 +123,16 @@ func WritePager(db *gorm.DB, pager Pager, w http.ResponseWriter, searchFn func(d
 
 func ReturnAnyway(r render.Render, okOrNot interface{}, data interface{}) {
 	status := http.StatusInternalServerError
-	switch okOrNot := okOrNot.(type) {
+	switch ctype := okOrNot.(type) {
 	case nil:
 		status = http.StatusOK
 	case bool:
-		if okOrNot {
+		if ctype {
 			status = http.StatusOK
 		}
 	case error:
-		if okOrNot == gorm.RecordNotFound {
+		glog.Errorln(ctype)
+		if ctype == gorm.RecordNotFound {
 			status = http.StatusNotFound
 		}
 	}

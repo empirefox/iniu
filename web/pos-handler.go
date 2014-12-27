@@ -43,7 +43,7 @@ func SaveUp(t Table, db *gorm.DB, data Model, up SaveUpData, r render.Render) {
 	basePos := reflect.ValueOf(data).FieldByName("Pos").Int()
 
 	var baseIp IdPos
-	baseIp, err = IpByPos(t.(string), basePos, wFn)
+	baseIp, err = IpByPosOrMax(t.(string), basePos, wFn)
 	if err != nil {
 		Return(r, err)
 		return

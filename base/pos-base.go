@@ -10,6 +10,9 @@ import (
 
 var (
 	IpKey = "Ips"
+
+	Max = max
+	Min = min
 )
 
 type IdPos struct {
@@ -29,6 +32,13 @@ func IpById(t string, id int64) (ip IdPos, err error) {
 func IpByPos(t string, pos int64, fns ...func(*gorm.DB) *gorm.DB) (ip IdPos, err error) {
 	err = db(t).Scopes(fns...).Where("pos=?", pos).First(&ip).Error
 	return
+}
+
+func IpByPosOrMax(t string, pos int64, fns ...func(*gorm.DB) *gorm.DB) (ip IdPos, err error) {
+	if pos == -1 {
+		return max(t, fns...)
+	}
+	return IpByPos(t, pos, fns...)
 }
 
 func IpBeforeOrAfterAnd(t string, isBefore bool, pos int64, fns ...func(*gorm.DB) *gorm.DB) ([]IdPos, error) {

@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/golang/glog"
 	"github.com/jinzhu/gorm"
 
 	. "github.com/empirefox/iniu/gorm/db"
@@ -18,11 +19,16 @@ var (
 )
 
 func init() {
-	gorm.DefaultCallback.Update().After("gorm:commit_or_rollback_transaction").Register("gorm:after_transaction", AfterTransaction)
+	gorm.DefaultCallback.Update().After("gorm:commit_or_rollback_transaction").Register("gorm:after_transaction", AfterUpdateTransaction)
+	gorm.DefaultCallback.Create().After("gorm:commit_or_rollback_transaction").Register("gorm:after_transaction", AfterCreateTransaction)
 }
 
-func AfterTransaction(scope *gorm.Scope) {
-	scope.CallMethod("AfterTransaction")
+func AfterUpdateTransaction(scope *gorm.Scope) {
+	scope.CallMethod("AfterUpdateTransaction")
+}
+
+func AfterCreateTransaction(scope *gorm.Scope) {
+	scope.CallMethod("AfterCreateTransaction")
 }
 
 type Context struct {
@@ -77,8 +83,33 @@ func (c *Context) BeforeSave(scope *gorm.Scope) {
 	}
 }
 
+func (c *Context) AfterCreateTransaction(scope *gorm.Scope) error {
+	if !scope.HasError() {
+		table := scope.TableName()
+		if table == "forms" || table == "fields" {
+			var where string
+			switch table {
+			case "forms":
+				where = "id=?"
+			case "fields":
+				where = "id = (SELECT form_id FROM fields WHERE id = ?)"
+			}
+
+			form := Form{}
+			err := DB.Where(where, scope.PrimaryKeyValue()).First(&form).Error
+			if err != nil {
+				glog.Errorln(err)
+				return RefreshFormFailed
+			}
+
+			InitForm(form)
+		}
+	}
+	return nil
+}
+
 // TODO maybe select record after every save?
-func (c *Context) AfterTransaction(scope *gorm.Scope) error {
+func (c *Context) AfterUpdateTransaction(scope *gorm.Scope) error {
 	if !scope.HasError() {
 		table := scope.TableName()
 		if table == "forms" || table == "fields" {
@@ -96,9 +127,6 @@ func (c *Context) AfterTransaction(scope *gorm.Scope) error {
 				}
 			}
 
-			var form = Form{}
-			var err error
-
 			vars := scope.SqlVars[:]
 			defer func() {
 				scope.SqlVars = vars
@@ -106,30 +134,26 @@ func (c *Context) AfterTransaction(scope *gorm.Scope) error {
 			scope.SqlVars = []interface{}{}
 			newVars := vars[skip:]
 
+			var sql string
 			switch table {
 			case "forms":
-				sql := fmt.Sprintf(
+				sql = fmt.Sprintf(
 					"SELECT * FROM %v %v",
 					scope.QuotedTableName(),
 					scope.CombinedConditionSql(),
 				)
-				err = DB.Raw(strings.Replace(sql, "$$", "?", -1), newVars...).Scan(&form).Error
 			case "fields":
-				s := scope.NewDB().Limit(1).NewScope(&Field{})
-				s.Raw(fmt.Sprintf(
-					"SELECT form_id FROM fields %v",
+				sql = fmt.Sprintf(
+					"SELECT * FROM forms WHERE id = (SELECT form_id FROM %v %v)",
+					scope.QuotedTableName(),
 					scope.CombinedConditionSql(),
-				))
-				var formId int64
-				err = s.DB().QueryRow(s.Sql, newVars...).Scan(&formId)
-				if err != nil {
-					return RefreshFormFailed
-				}
-
-				err = scope.NewDB().Where("id=?", formId).First(&form).Error
+				)
 			}
 
+			form := Form{}
+			err := DB.Raw(strings.Replace(sql, "$$", "?", -1), newVars...).Scan(&form).Error
 			if err != nil {
+				glog.Errorln(err)
 				return RefreshFormFailed
 			}
 			InitForm(form)

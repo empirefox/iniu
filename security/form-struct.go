@@ -34,9 +34,14 @@ type Form struct {
 	Context `json:"-" sql:"-"`
 }
 
-func (form *Form) AfterDelete(tx *gorm.DB) (err error) {
-	err = tx.Where(Field{FormId: form.Id}).Delete(Field{}).Error
-	return
+func (form *Form) AfterDelete(scope *gorm.Scope) (err error) {
+	if ids, ok := scope.Get("context:delete_ids"); ok {
+		return scope.NewDB().Where("form_id in (?)", ids).Delete(Field{}).Error
+	}
+	if form.Id != 0 {
+		return scope.NewDB().Where(Field{FormId: form.Id}).Delete(Field{}).Error
+	}
+	return nil
 }
 
 //Ops由客户端使用时解析为json

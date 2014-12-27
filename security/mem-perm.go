@@ -76,7 +76,7 @@ func initForm(form Form) {
 
 	formType := reflect.TypeOf(form)
 	formValue := reflect.ValueOf(form)
-	tarTable := ToTable(formValue.FieldByName("Name").String())
+	tarTable := ToTable(form.Name)
 	fieldSize := formType.NumField()
 
 	// webPermMap

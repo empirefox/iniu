@@ -79,8 +79,8 @@ var Page = func(t Table, db *gorm.DB, r render.Render, pager Pager, w http.Respo
 }
 
 // Put
-func Remove(db *gorm.DB, data IdsData, r render.Render) {
-	err := db.Where("id in (?)", data.Ids).Delete(IdPosName{}).Error
+func Remove(t Table, db *gorm.DB, data IdsData, r render.Render) {
+	err := db.Set("context:delete_ids", data.Ids).Where("id in (?)", data.Ids).Delete(New(t)).Error
 	Return(r, err)
 }
 
