@@ -1,0 +1,39 @@
+{
+  tagsjson: {
+    Command: 'tagsjson',
+    Presets: {
+      all: {
+        VIEW: 'dev',
+        MGR: 'dev',
+      },
+      view: {
+        VIEW: 'dev',
+      },
+    },
+    Ignore: ['basic'],
+    Types: {
+      Foo: {
+        VIEW: 'de',
+        MGR: 'dev',
+      },
+      Bar: '&all'
+    }
+  },
+
+  iniuiniter: {
+    Command: 'iniuiniter',
+    Types: {
+      Foo: {
+        pkshow: ['Id', 'Bar'],
+      },
+      Bar: {
+        basestruct: false,
+      },
+      Alice: {
+        pkshow: false,
+        basestruct: false,
+      }
+    }
+  },
+
+}

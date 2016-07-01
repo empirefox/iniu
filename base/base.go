@@ -4,215 +4,87 @@ import (
 	"errors"
 	"reflect"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/jinzhu/gorm"
 )
 
-type J map[string]interface{}
-
-type Creator interface {
-	New() interface{}
-	Slice() interface{}
-	MakeSlice() interface{}
-	IndirectSlice() interface{}
-	//return nil if m is Zero
-	Example() Model
-	Form() map[string]interface{}
-	HasPos() bool
-}
+var log = logrus.New()
 
 type Model interface{}
 
-type Table interface{}
+type PermType int
 
-var (
-	Creators     = map[Table]Creator{}
-	FormTableMap = map[string]string{}
-
-	// exports
-	SaveModel     = saveModel
-	SaveModelWith = saveModelWith
+const (
+	READ PermType = iota + 1
+	UPDATE
+	CREATE
 )
 
-type creator struct {
-	mtype  reflect.Type
-	stype  reflect.Type
-	m      Model
-	form   map[string]interface{}
-	hasPos bool
+var (
+	// key: structname
+	StructMetaMap = make(map[string]*StructMeta)
+	// key: tablename
+	TableMetaMap = make(map[string]*StructMeta)
+	// key: type
+	TypeMetaMap = make(map[reflect.Type]*StructMeta)
+
+	// exports
+//	SaveModel     = saveModel
+//	SaveModelWith = saveModelWith
+)
+
+func RegisterStruct(
+	m Model,
+	searchAttrs []string,
+	newer func() interface{},
+	slice func() interface{},
+	nilSlice func() interface{},
+	pkShowFields []string,
+	getPkShow func(*gorm.DB) [][]interface{}) *StructMeta {
+
+	sm := NewStructMeta(m)
+	sm.SearchAttrs = searchAttrs
+	sm.newer = newer
+	sm.slice = slice
+	sm.nilSlice = nilSlice
+	sm.PkShowFields = pkShowFields
+	sm.GetPkShow = getPkShow
+	StructMetaMap[sm.Name] = sm
+	TableMetaMap[sm.TableName] = sm
+	TypeMetaMap[sm.Mtype] = sm
+	//	TypeMetaMap[reflect.PtrTo(sm.Mtype)] = sm
+	return sm
 }
 
-func (c creator) New() interface{} {
-	return reflect.New(c.mtype).Interface()
-}
-
-func (c creator) Slice() interface{} {
-	return reflect.New(reflect.SliceOf(c.mtype)).Interface()
-}
-
-func (c creator) MakeSlice() interface{} {
-	svalue := reflect.New(reflect.SliceOf(c.mtype))
-	svalue.Elem().Set(reflect.MakeSlice(reflect.SliceOf(c.mtype), 0, 0))
-	return svalue.Interface()
-}
-
-func (c creator) IndirectSlice() interface{} {
-	return reflect.MakeSlice(reflect.SliceOf(c.mtype), 0, 0).Interface()
-}
-
-func (c creator) Example() Model {
-	return c.m
-}
-
-func (c creator) Form() map[string]interface{} {
-	return c.form
-}
-
-func (c creator) HasPos() bool {
-	return c.hasPos
-}
-
-type NameOnlyField struct {
-	Name string
-}
-
-func Register(m Model) {
-	mtype := reflect.TypeOf(m)
-	mname := mtype.Name()
-
-	c := &creator{
-		mtype: mtype,
-		stype: reflect.SliceOf(mtype),
-	}
-
-	f := map[string]interface{}{}
-	f["Name"] = mname
-
-	fieldsCount := mtype.NumField()
-	fields := []NameOnlyField{}
-	for i := 0; i < fieldsCount; i++ {
-		structField := mtype.Field(i)
-		if tag := structField.Tag; !structField.Anonymous && tag.Get("sql") != "-" {
-			if structField.Name == "Pos" {
-				c.hasPos = true
+func TryLoadFieldStruct() {
+	for _, sm := range TypeMetaMap {
+		for _, field := range sm.Fields {
+			ftyp := field.Field.Struct.Type
+			for ftyp.Kind() == reflect.Slice || ftyp.Kind() == reflect.Ptr {
+				ftyp = ftyp.Elem()
 			}
-			fields = append(fields, NameOnlyField{structField.Name})
+			if fsm, ok := TypeMetaMap[ftyp]; ok {
+				field.Struct = fsm
+			}
 		}
 	}
-	if fieldsCount > 0 {
-		f["Fields"] = fields
-	}
-
-	if !reflect.DeepEqual(m, reflect.Zero(mtype).Interface()) {
-		f["New"] = m
-		c.m = m
-	}
-
-	c.form = f
-
-	t := Tablename(m)
-	Creators[t] = *c
-	FormTableMap[mname] = t
 }
 
-func New(t Table) interface{} {
-	if c, ok := Creators[t]; ok {
-		return c.New()
-	}
-	return nil
-}
-
-func Slice(t Table) interface{} {
-	if c, ok := Creators[t]; ok {
-		return c.Slice()
-	}
-	return nil
-}
-
-func MakeSlice(t Table) interface{} {
-	if c, ok := Creators[t]; ok {
-		return c.MakeSlice()
-	}
-	return nil
-}
-
-func IndirectSlice(t Table) interface{} {
-	if c, ok := Creators[t]; ok {
-		return c.IndirectSlice()
-	}
-	return nil
-}
-
-func HasPos(t Table) bool {
-	if c, ok := Creators[t]; ok {
-		return c.HasPos()
-	}
-	return false
-}
-
-func Example(t Table) Model {
-	if c, ok := Creators[t]; ok {
-		return c.Example()
-	}
-	return nil
-}
-
-func ModelFormMetas(t Table) (map[string]interface{}, error) {
-	if c, ok := Creators[t]; ok {
-		return c.Form(), nil
-	}
-	return nil, errors.New("Form Metas Not Found: " + t.(string))
-}
-
-func ToTable(n string) string {
-	return FormTableMap[n]
-}
-
-func ToFormname(t Table) string {
-	if c, ok := Creators[t]; ok {
-		f := c.Form()
-		return f["Name"].(string)
-	}
-	return ""
-}
-
-func saveModel(db *gorm.DB, iPtr *Model) error {
-	return saveModelWith(db, iPtr, nil)
-}
-
-func saveModelWith(db *gorm.DB, iPtr *Model, param map[string]interface{}) error {
-	mPtr := reflect.New(reflect.TypeOf(*iPtr))
-	m := mPtr.Elem()
-	m.Set(reflect.ValueOf(*iPtr))
-
-	t := ToTable(m.Type().Name())
-
-	for k, v := range param {
-		m.FieldByName(k).Set(reflect.ValueOf(v))
-	}
-
-	err := db.Save(mPtr.Interface()).Error
-	if err != nil {
-		return err
-	}
-
-	id := m.FieldByName("Id").Int()
-	n := New(t)
-	err = db.Where("id=?", id).First(n).Error
-	if err != nil {
-		return err
-	}
-
-	reflect.ValueOf(iPtr).Elem().Set(reflect.ValueOf(n).Elem())
-	return nil
-}
-
-func Tablename(m Model) string {
-	s := gorm.Scope{Value: m}
-	return s.TableName()
+func tablename(m Model) string {
+	s := &gorm.Scope{Value: m}
+	return s.GetModelStruct().TableName(nil)
 }
 
 func Formname(m Model) string {
-	return reflect.TypeOf(m).Name()
+	s := &gorm.Scope{Value: m}
+	return s.IndirectValue().Type().Name()
+}
+
+func TableSorting(table string) (string, bool) {
+	if sm, ok := StructMetaMap[table]; ok {
+		return sm.GetSorting()
+	}
+	return "", false
 }
 
 //////////////////////////////
